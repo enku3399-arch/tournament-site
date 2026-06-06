@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="mn">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Монгол 87/89 · V Спорт Наадам · УБ 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════════════════
+     TOP UTILITY BAR
+     ════════════════════════════════════════════════════════════════ -->
+<div class="utility">
+  <div class="wrap-wide utility-row">
+    <div class="utility-left">
+      <span class="live-dot">Шууд дамжуулалт</span>
+      <span class="utility-sep"></span>
+      <span>2026.06.11 · Пүрэв · 14:32 ULAT</span>
+    </div>
+    <div class="utility-right">
+      <a href="#">Хэвлэлийн өрөө</a>
+      <span class="utility-sep"></span>
+      <a href="#">Холбоо барих</a>
+      <span class="utility-sep"></span>
+      <a href="#">EN</a>
+      <a href="#" style="color:#0B1426;font-weight:700;">MN</a>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════
+     MASTHEAD
+     ════════════════════════════════════════════════════════════════ -->
+<header class="masthead">
+  <div class="wrap-wide mast-row">
+    <a href="/" class="brand">
+      <div class="emblem">
+        <img src="assets/logo-color.png" alt="Монгол 87/89 спорт наадам" />
+      </div>
+      <div class="brand-text">
+        <div class="brand-line-1">Монгол 87/89 Төгсөгчдийн Холбоо ТББ</div>
+        <div class="brand-line-2">V Спорт Наадам · 2026</div>
+        <div class="brand-line-3">Өнгөлөг · Сүрлэг · Тэнгэрлэг · Ухаалаг</div>
+      </div>
+    </a>
+    <div class="mast-meta">
+      <div class="mast-meta-item">
+        <div class="mast-meta-label">Огноо</div>
+        <div class="mast-meta-value">06.11 — <span class="accent">06.12</span></div>
+      </div>
+      <div class="mast-meta-item">
+        <div class="mast-meta-label">Байршил</div>
+        <div class="mast-meta-value">"Буянт Ухаа"<br/>спорт ордон</div>
+      </div>
+      <div class="mast-meta-item">
+        <div class="mast-meta-label">Хост аймгууд</div>
+        <div class="mast-meta-value">Өмнөговь · Сэлэнгэ<br/>Төв · Увс</div>
+      </div>
+    </div>
+  </div>
+</header>
+
+<!-- ════════════════════════════════════════════════════════════════
+     MAIN NAV
+     ════════════════════════════════════════════════════════════════ -->
+<nav class="mainnav">
+  <div class="wrap-wide nav-row">
+    <div class="nav-links">
+      <a href="#" class="active">Нүүр</a>
+      <a href="#">Мэдээ</a>
+      <a href="#">Спортын төрөл</a>
+      <a href="#">Хуваарь</a>
+      <a href="#">Үр дүн</a>
+      <a href="#">Багууд</a>
+      <a href="#">Наадмын тухай</a>
+    </div>
+    <div class="nav-cta">
+      <button class="menu-toggle" id="menuOpen" aria-label="Цэс">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18M3 12h18M3 18h18" stroke-linecap="square"/></svg>
+      </button>
+      <a href="#" class="nav-btn">Шүүгч</a>
+      <a href="#" class="nav-btn primary">Бүртгүүлэх →</a>
+    </div>
+  </div>
+</nav>
+
+<!-- Mobile menu overlay -->
+<div class="mobile-menu" id="mobileMenu">
+  <div class="mobile-menu-head">
+    <a href="/" class="brand">
+      <div class="emblem"><img src="assets/logo-color.png" alt="Лого"/></div>
+      <div class="brand-text">
+        <div class="brand-line-1">Монгол 87/89 ТББ</div>
+        <div class="brand-line-2">V Спорт Наадам</div>
+      </div>
+    </a>
+    <button class="mobile-menu-close" id="menuClose" aria-label="Хаах">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M6 18L18 6"/></svg>
+    </button>
+  </div>
+  <div class="mobile-menu-links">
+    <a href="#">Нүүр <span class="arrow">→</span></a>
+    <a href="#">Мэдээ <span class="arrow">→</span></a>
+    <a href="#">Спортын төрөл <span class="arrow">→</span></a>
+    <a href="#">Хуваарь <span class="arrow">→</span></a>
+    <a href="#">Үр дүн <span class="arrow">→</span></a>
+    <a href="#">Багууд <span class="arrow">→</span></a>
+    <a href="#">Наадмын тухай <span class="arrow">→</span></a>
+    <a href="#">Шүүгчийн портал <span class="arrow">→</span></a>
+  </div>
+  <div class="mobile-menu-foot">
+    <a href="#" class="btn-primary">Бүртгүүлэх →</a>
+    <a href="#" class="btn-ghost">Шууд дамжуулалт ▷</a>
+  </div>
+</div>
+
+<script>
+  const menu = document.getElementById('mobileMenu');
+  document.getElementById('menuOpen').addEventListener('click', () => {
+    menu.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  });
+  document.getElementById('menuClose').addEventListener('click', () => {
+    menu.classList.remove('open');
+    document.body.style.overflow = '';
+  });
+  menu.querySelectorAll('.mobile-menu-links a').forEach(a => {
+    a.addEventListener('click', () => {
+      menu.classList.remove('open');
+      document.body.style.overflow = '';
+    });
+  });
+</script>
+
+<!-- Gold accent ribbon between white nav and dark hero -->
+<div class="gold-ribbon"></div>
+
+<!-- ════════════════════════════════════════════════════════════════
+     HERO
+     ════════════════════════════════════════════════════════════════ -->
+<section class="hero">
+  <div class="hero-image">
+    <div class="hero-placeholder-label">[ Hero photo — нээлтийн ёслол / тоглогчдын панорам ]</div>
+  </div>
+  <div class="wrap-wide hero-content">
+    <div class="hero-grid">
+
+      <div class="hero-left">
+        <div class="hero-edition">
+          <span class="roman">V</span>
+          <div class="hero-edition-text">
+            <div class="l1">V Edition · 2026</div>
+            <div class="l2">Спорт Наадам</div>
+          </div>
+        </div>
+
+        <h1 class="hero-title">
+          МОНГОЛ<br/>
+          <span class="stroke">87 / 89</span><br/>
+          СПОРТ НААДАМ
+        </h1>
+
+        <p class="hero-subtitle">
+          <strong style="color:var(--gold-light);font-weight:600;">Өнгөлөг · Сүрлэг · Тэнгэрлэг · Ухаалаг</strong> — Монгол 87/89 онд төгссөн нэгэн үеийнхний нөхөрлөл, тэмцэл, амжилтыг нэгтгэх V удаагийн наадам. 21 аймгийн оролцоотой, 5 төрөлд, 2 өдрийн турш.
+        </p>
+
+        <div class="hero-meta-row">
+          <div class="hero-meta-cell">
+            <div class="hero-meta-label">Огноо</div>
+            <div class="hero-meta-value">06.11 — 06.12</div>
+          </div>
+          <div class="hero-meta-cell">
+            <div class="hero-meta-label">Хот</div>
+            <div class="hero-meta-value">Улаанбаатар</div>
+          </div>
+          <div class="hero-meta-cell">
+            <div class="hero-meta-label">Заал</div>
+            <div class="hero-meta-value">Буянт Ухаа</div>
+          </div>
+          <div class="hero-meta-cell">
+            <div class="hero-meta-label">Багууд</div>
+            <div class="hero-meta-value">21 аймаг</div>
+          </div>
+        </div>
+
+        <div class="hero-cta-row">
+          <a href="#" class="btn-primary">Хуваарь үзэх <span class="btn-arrow">→</span></a>
+          <a href="#" class="btn-ghost">Шууд дамжуулалт <span class="btn-arrow">▷</span></a>
+        </div>
+      </div>
+
+      <div class="hero-right">
+        <div class="countdown-card">
+          <div class="countdown-eyebrow">
+            <span class="eyebrow">Нээлтэд үлдсэн</span>
+            <span class="mono" style="font-size:11px;color:var(--fog);">06.11 · 13:00</span>
+          </div>
+          <div class="countdown-grid">
+            <div class="cd-cell"><div class="cd-num">11</div><div class="cd-label">Хоног</div></div>
+            <div class="cd-cell"><div class="cd-num">06</div><div class="cd-label">Цаг</div></div>
+            <div class="cd-cell"><div class="cd-num">42</div><div class="cd-label">Минут</div></div>
+            <div class="cd-cell"><div class="cd-num">18</div><div class="cd-label">Сек</div></div>
+          </div>
+          <div class="next-event">
+            <div class="next-event-row">
+              <span class="next-event-l">Нээлтийн үйл ажиллагаа</span>
+              <span class="next-event-v">13:00 — 14:00</span>
+            </div>
+            <div class="next-event-detail">2026.06.11 Пүрэв · "Буянт Ухаа" спорт ордон</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════════
+     LIVE RIBBON
+     ════════════════════════════════════════════════════════════════ -->
+<div class="ribbon">
+  <div class="wrap-wide ribbon-row">
+    <span class="ribbon-tag">Шууд</span>
+    <div class="ribbon-feed">
+      <div class="ribbon-item">
+        <span class="ribbon-time">14:25</span>
+        <span class="ribbon-sport">Сагсан ♂ · ⅛</span>
+        <span class="ribbon-match">Төв vs Дархан</span>
+        <span class="ribbon-score"><span class="win">48</span> – 41</span>
+      </div>
+      <div class="ribbon-item">
+        <span class="ribbon-time">15:00</span>
+        <span class="ribbon-sport">Волейбол ♀ · ¼</span>
+        <span class="ribbon-match">Сэлэнгэ vs Орхон</span>
+        <span class="ribbon-score">2 – 1</span>
+      </div>
+      <div class="ribbon-item">
+        <span class="ribbon-time">15:30</span>
+        <span class="ribbon-sport">Дартс баг</span>
+        <span class="ribbon-match">Хагас финал</span>
+        <span class="ribbon-score">⏳</span>
+      </div>
+      <div class="ribbon-item">
+        <span class="ribbon-time">16:00</span>
+        <span class="ribbon-sport">Шатар баг · Тур 5</span>
+        <span class="ribbon-match">10 ширээ</span>
+        <span class="ribbon-score">⏳</span>
+      </div>
+      <div class="ribbon-item">
+        <span class="ribbon-time">16:30</span>
+        <span class="ribbon-sport">Теннис баг</span>
+        <span class="ribbon-match">¼ финал</span>
+        <span class="ribbon-score">⏳</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════════
+     STATS STRIP — CREAM
+     ════════════════════════════════════════════════════════════════ -->
+<section class="stats">
+  <div class="wrap-wide stats-grid">
+    <div class="stat-cell">
+      <div class="stat-num">21</div>
+      <div class="stat-label">Оролцогч<br/>аймаг</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-num">5</div>
+      <div class="stat-label">Спортын<br/>төрөл</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-num">7</div>
+      <div class="stat-label">Тэмцээний<br/>ангилал</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-num">1,240<span class="plus">+</span></div>
+      <div class="stat-label">Бүртгэлтэй<br/>тамирчид</div>
+    </div>
+    <div class="stat-cell">
+      <div class="stat-num">2</div>
+      <div class="stat-label">Өдөр<br/>үргэлжилнэ</div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════════
+     FEATURED NEWS — DARK
+     ════════════════════════════════════════════════════════════════ -->
+<section class="section">
+  <div class="wrap-wide">
+    <div class="section-header">
+      <div>
+        <span class="eyebrow">Сүүлийн мэдээ</span>
+        <h2 class="section-title">Онцлох <span class="gold">мэдээ</span></h2>
+      </div>
+      <a href="#" class="section-action">Бүх мэдээ →</a>
+    </div>
+
+    <div class="news-grid">
+      <a href="#" class="news-card feature">
+        <div class="news-image">
+          <span class="news-tag red">Онцлох</span>
+          <span class="news-image-label">[ feature photo — нээлтийн ёслол ]</span>
+        </div>
+        <div class="news-body">
+          <div class="news-meta">
+            <span>2026.06.01</span><span class="dot"></span>
+            <span>Зохион байгуулах хороо</span>
+          </div>
+          <h3 class="news-title">V Спорт наадам нээгдэхэд 11 хоног үлдлээ — 21 аймгийн төлөөлөл "Буянт Ухаа"-д хүрэлцэн ирнэ</h3>
+          <p class="news-excerpt">
+            Нээлтийн ёслол 06.11-ний 13:00 цагт "Буянт Ухаа" спорт ордонд болж, "Өнгөлөг · Сүрлэг · Тэнгэрлэг · Ухаалаг"
+            уриан дор 5 төрөлд эр, эмэгтэйчүүд хүч сорилцоно.
+          </p>
+        </div>
+      </a>
+
+      <div class="news-stack">
+        <a href="#" class="news-card compact">
+          <div class="news-compact">
+            <div class="news-image"><span class="news-image-label">[ thumb ]</span></div>
+            <div class="news-body">
+              <div class="news-meta"><span>05.28</span><span class="dot"></span><span>Сагсан бөмбөг ♂</span></div>
+              <h3 class="news-title">Эрэгтэй сагсны хэсэгт хуваарилалт хийгдлээ</h3>
+            </div>
+          </div>
+        </a>
+        <a href="#" class="news-card compact">
+          <div class="news-compact">
+            <div class="news-image"><span class="news-image-label">[ thumb ]</span></div>
+            <div class="news-body">
+              <div class="news-meta"><span>05.26</span><span class="dot"></span><span>Зохион байгуулалт</span></div>
+              <h3 class="news-title">Өмнөговь · Сэлэнгэ · Төв · Увс — энэ жилийн хост аймгууд</h3>
+            </div>
+          </div>
+        </a>
+        <a href="#" class="news-card compact">
+          <div class="news-compact">
+            <div class="news-image"><span class="news-image-label">[ thumb ]</span></div>
+            <div class="news-body">
+              <div class="news-meta"><span>05.22</span><span class="dot"></span><span>NICE-чүүд</span></div>
+              <h3 class="news-title">Хаалтын "Бид хамтдаа" үдэшлэгт NICE хамтлаг тоглоно</h3>
+            </div>
+          </div>
+        </a>
+        <a href="#" class="news-card compact">
+          <div class="news-compact">
+            <div class="news-image"><span class="news-image-label">[ thumb ]</span></div>
+            <div class="news-body">
+              <div class="news-meta"><span>05.18</span><span class="dot"></span><span>Уламжлал</span></div>
+              <h3 class="news-title">IV наадмын аварга Дархан-Уулын багт V наадмын туг хүлээлгэнэ</h3>
+            </div>
+          </div>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════════
+     SPORTS GRID — CREAM · 5 sports, 7 categories
+     ════════════════════════════════════════════════════════════════ -->
+<section class="section sports-section">
+  <div class="wrap-wide">
+    <div class="section-header">
+      <div>
+        <span class="eyebrow">5 төрөл · 7 ангилал</span>
+        <h2 class="section-title">Спортын <span class="gold">төрлүүд</span></h2>
+      </div>
+      <a href="#" class="section-action">Бүгдийг харах →</a>
+    </div>
+
+    <div class="sports-grid sports-grid-5">
+
+      <a href="#" class="sport-card">
+        <div class="sport-head-row">
+          <span class="sport-num">01</span>
+          <span class="sport-cat">Эр · Эм</span>
+        </div>
+        <div class="sport-icon-frame"><div class="sport-pictogram" style="-webkit-mask-image:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><circle cx=%2212%22 cy=%2212%22 r=%2210%22 fill=%22none%22 stroke=%22black%22 stroke-width=%221.5%22/><path d=%22M2 12h20M12 2v20M5 5c4 4 10 4 14 0M5 19c4-4 10-4 14 0%22 fill=%22none%22 stroke=%22black%22 stroke-width=%221.5%22/></svg>');mask-image:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><circle cx=%2212%22 cy=%2212%22 r=%2210%22 fill=%22none%22 stroke=%22black%22 stroke-width=%221.5%22/><path d=%22M2 12h20M12 2v20M5 5c4 4 10 4 14 0M5 19c4-4 10-4 14 0%22 fill=%22none%22 stroke=%22black%22 stroke-width=%221.5%22/></svg>');"></div></div>
+        <div>
+          <div class="sport-name">Сагсан<br/>бөмбөг</div>
+          <div class="sport-cats">
+            <span class="cat-pill">♂ Эрэгтэй</span>
+            <span class="cat-pill">♀ Эмэгтэй</span>
+          </div>
+        </div>
+      </a>
+
+      <a href="#" class="sport-card">
+        <div class="sport-head-row">
+          <span class="sport-num">02</span>
+          <span class="sport-cat">Эр · Эм</span>
+        </div>
+        <div class="sport-icon-frame"><div class="sport-pictogram" style="-webkit-mask-image:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><circle cx=%2212%22 cy=%2212%22 r=%2210%22 fill=%22none%22 stroke=%22black%22 stroke-width=%221.5%22/><path d=%22M12 2c-3 5-3 12 0 20M2 8c6-1 14 1 18 8M22 8c-6-1-14 1-18 8%22 fill=%22none%22 stroke=%22black%22 stroke-width=%221.5%22/></svg>');mask-image:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><circle cx=%2212%22 cy=%2212%22 r=%2210%22 fill=%22none%22 stroke=%22black%22 stroke-width=%221.5%22/><path d=%22M12 2c-3 5-3 12 0 20M2 8c6-1 14 1 18 8M22 8c-6-1-14 1-18 8%22 fill=%22none%22 stroke=%22black%22 stroke-width=%221.5%22/></svg>');"></div></div>
+        <div>
+          <div class="sport-name">Волейбол</div>
+          <div class="sport-cats">
+            <span class="cat-pill">♂ Эрэгтэй</span>
+            <span class="cat-pill">♀ Эмэгтэй</span>
+          </div>
+        </div>
+      </a>
+
+      <a href="#" class="sport-card">
+        <div class="sport-head-row">
+          <span class="sport-num">03</span>
+          <span class="sport-cat">Баг</span>
+        </div>
+        <div class="sport-icon-frame"><div class="sport-pictogram" style="-webkit-mask-image:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><path d=%22M8 22h8M9 20l-1-3h8l-1 3M10 17V8m4 9V8M7 8h10l-1-3h-2l-1-2h-2l-1 2H8z%22 fill=%22none%22 stroke=%22black%22 stroke-width=%221.5%22 stroke-linejoin=%22round%22/></svg>');mask-image:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><path d=%22M8 22h8M9 20l-1-3h8l-1 3M10 17V8m4 9V8M7 8h10l-1-3h-2l-1-2h-2l-1 2H8z%22 fill=%22none%22 stroke=%22black%22 stroke-width=%221.5%22 stroke-linejoin=%22round%22/></svg>');"></div></div>
+        <div>
+          <div class="sport-name">Шатар</div>
+          <div class="sport-cats">
+            <span class="cat-pill">Багаар</span>
+          </div>
+        </div>
+      </a>
+
+      <a href="#" class="sport-card">
+        <div class="sport-head-row">
+          <span class="sport-num">04</span>
+          <span class="sport-cat">Баг</span>
+        </div>
+        <div class="sport-icon-frame"><div class="sport-pictogram" style="-webkit-mask-image:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><circle cx=%228%22 cy=%2210%22 r=%225%22 fill=%22none%22 stroke=%22black%22 stroke-width=%221.5%22/><path d=%22M11 13l8 8M17 19l3 3%22 fill=%22none%22 stroke=%22black%22 stroke-width=%221.5%22 stroke-linecap=%22round%22/></svg>');mask-image:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><circle cx=%228%22 cy=%2210%22 r=%225%22 fill=%22none%22 stroke=%22black%22 stroke-width=%221.5%22/><path d=%22M11 13l8 8M17 19l3 3%22 fill=%22none%22 stroke=%22black%22 stroke-width=%221.5%22 stroke-linecap=%22round%22/></svg>');"></div></div>
+        <div>
+          <div class="sport-name">Ширээний<br/>теннис</div>
+          <div class="sport-cats">
+            <span class="cat-pill">Багаар</span>
+          </div>
+        </div>
+      </a>
+
+      <a href="#" class="sport-card">
+        <div class="sport-head-row">
+          <span class="sport-num">05</span>
+          <span class="sport-cat">Баг</span>
+        </div>
+        <div class="sport-icon-frame"><div class="sport-pictogram" style="-webkit-mask-image:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><circle cx=%2212%22 cy=%2212%22 r=%2210%22 fill=%22none%22 stroke=%22black%22 stroke-width=%221.5%22/><circle cx=%2212%22 cy=%2212%22 r=%226%22 fill=%22none%22 stroke=%22black%22 stroke-width=%221.5%22/><circle cx=%2212%22 cy=%2212%22 r=%222%22 fill=%22black%22/></svg>');mask-image:url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><circle cx=%2212%22 cy=%2212%22 r=%2210%22 fill=%22none%22 stroke=%22black%22 stroke-width=%221.5%22/><circle cx=%2212%22 cy=%2212%22 r=%226%22 fill=%22none%22 stroke=%22black%22 stroke-width=%221.5%22/><circle cx=%2212%22 cy=%2212%22 r=%222%22 fill=%22black%22/></svg>');"></div></div>
+        <div>
+          <div class="sport-name">Дартс</div>
+          <div class="sport-cats">
+            <span class="cat-pill">Багаар</span>
+          </div>
+        </div>
+      </a>
+
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════════
+     SCHEDULE — DARK · 2 days
+     ════════════════════════════════════════════════════════════════ -->
+<section class="section">
+  <div class="wrap-wide">
+    <div class="section-header">
+      <div>
+        <span class="eyebrow">2026.06.11 — 2026.06.12</span>
+        <h2 class="section-title">Наадмын <span class="gold">хуваарь</span></h2>
+      </div>
+      <a href="#" class="section-action">Дэлгэрэнгүй →</a>
+    </div>
+
+    <div class="schedule-grid schedule-grid-2">
+      <!-- Day 1 -->
+      <div class="day-card">
+        <div class="day-head">
+          <div class="day-num">11</div>
+          <div class="day-meta">
+            <div class="day-month">2026 · ЗУРГАА</div>
+            <div class="day-weekday">Пүрэв гараг · Day 1</div>
+          </div>
+        </div>
+
+        <div class="day-events-section">
+          <div class="day-section-title">Үндсэн тэмцээн</div>
+          <div class="day-events">
+            <div class="day-event"><div class="event-time">08:00<br/>22:00</div><div class="event-name">Сагсан бөмбөгийн тэмцээн<span class="note">Эр + Эм · Гол заал</span></div></div>
+            <div class="day-event"><div class="event-time">08:00<br/>22:00</div><div class="event-name">Волейболын тэмцээн<span class="note">Эр + Эм · Гол заал</span></div></div>
+            <div class="day-event"><div class="event-time">10:00<br/>16:00</div><div class="event-name">Шатрын тэмцээн<span class="note">Бага заал · Багаар</span></div></div>
+            <div class="day-event"><div class="event-time">10:00<br/>16:00</div><div class="event-name">Дартсын тэмцээн<span class="note">Бага заал · Багаар</span></div></div>
+            <div class="day-event hilight"><div class="event-time">13:00<br/>14:00</div><div class="event-name">🎉 Спорт наадмын нээлтийн ёслол<span class="note">Гол талбай</span></div></div>
+          </div>
+          <div class="day-section-title">Хөгжөөн дэмжигчдэд</div>
+          <div class="day-events">
+            <div class="day-event"><div class="event-time">11:00<br/>13:00</div><div class="event-name">"Кофетой шүлэг" номын өдөрлөг</div></div>
+            <div class="day-event"><div class="event-time">14:00<br/>15:00</div><div class="event-name">Вальс бүжгийн хосын тэмцээн</div></div>
+            <div class="day-event"><div class="event-time">16:00<br/>18:00</div><div class="event-name">Сонирхогчдын дартсын тэмцээн</div></div>
+            <div class="day-event"><div class="event-time">10:00<br/>20:00</div><div class="event-name">Бүтээлч 89-чүүд · Үзэсгэлэн худалдаа<span class="note">21 аймгийн үйлдвэрлэл</span></div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Day 2 -->
+      <div class="day-card">
+        <div class="day-head">
+          <div class="day-num">12</div>
+          <div class="day-meta">
+            <div class="day-month">2026 · ЗУРГАА</div>
+            <div class="day-weekday">Баасан гараг · Final Day</div>
+          </div>
+        </div>
+
+        <div class="day-events-section">
+          <div class="day-section-title">Үндсэн тэмцээн</div>
+          <div class="day-events">
+            <div class="day-event"><div class="event-time">08:00<br/>17:00</div><div class="event-name">Сагсан бөмбөгийн тэмцээн<span class="note">Эр + Эм · Финал хүртэл</span></div></div>
+            <div class="day-event"><div class="event-time">08:00<br/>17:00</div><div class="event-name">Волейболын тэмцээн<span class="note">Эр + Эм · Финал хүртэл</span></div></div>
+            <div class="day-event"><div class="event-time">10:00<br/>16:00</div><div class="event-name">Ширээний теннисний тэмцээн<span class="note">Бага заал · Багаар</span></div></div>
+            <div class="day-event"><div class="event-time">17:00<br/>18:00</div><div class="event-name">Хөгжөөн дэмжигчдийн бүжиг, дээсний үзүүлбэр</div></div>
+            <div class="day-event hilight"><div class="event-time">18:00<br/>20:00</div><div class="event-name">🏆 Шагнал гардуулах · Хаалтын ёслол</div></div>
+            <div class="day-event hilight"><div class="event-time">20:00<br/>23:00</div><div class="event-name">🎶 "Бид хамтдаа" үдшийн цэнгүүн<span class="note">NICE хамтлаг</span></div></div>
+          </div>
+          <div class="day-section-title">Хөгжөөн дэмжигчдэд</div>
+          <div class="day-events">
+            <div class="day-event"><div class="event-time">11:00<br/>15:00</div><div class="event-name">Хөзөр · "5 гар" · муушигны тэмцээн</div></div>
+            <div class="day-event"><div class="event-time">14:00<br/>15:00</div><div class="event-name">Чөлөөт бүжгийн тэмцээн</div></div>
+            <div class="day-event"><div class="event-time">10:00<br/>20:00</div><div class="event-name">Бүтээлч 89-чүүд · Үзэсгэлэн худалдаа</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════════
+     MEDAL TABLE — CREAM
+     ════════════════════════════════════════════════════════════════ -->
+<section class="section medal-section">
+  <div class="wrap-wide">
+    <div class="section-header">
+      <div>
+        <span class="eyebrow">Medal Standings · Live</span>
+        <h2 class="section-title">Медалийн <span class="gold">хүснэгт</span></h2>
+      </div>
+      <a href="#" class="section-action">Бүх хүснэгт →</a>
+    </div>
+
+    <div class="medal-wrap">
+      <table class="medal-table">
+        <thead>
+          <tr>
+            <th>Эрэмбэ</th>
+            <th class="left">Аймаг</th>
+            <th>🥇 Алт</th>
+            <th>🥈 Мөнгө</th>
+            <th>🥉 Хүрэл</th>
+            <th>Нийт</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="rank-cell">1</td>
+            <td class="left"><div class="team-cell"><div class="aimag-flag flag-1"></div><span class="team-name">Төв аймаг</span></div></td>
+            <td class="medal-cell g">3</td>
+            <td class="medal-cell s">1</td>
+            <td class="medal-cell b">2</td>
+            <td class="medal-total">6</td>
+          </tr>
+          <tr>
+            <td class="rank-cell">2</td>
+            <td class="left"><div class="team-cell"><div class="aimag-flag flag-2"></div><span class="team-name">Сэлэнгэ</span></div></td>
+            <td class="medal-cell g">2</td>
+            <td class="medal-cell s">2</td>
+            <td class="medal-cell b">1</td>
+            <td class="medal-total">5</td>
+          </tr>
+          <tr>
+            <td class="rank-cell">3</td>
+            <td class="left"><div class="team-cell"><div class="aimag-flag flag-3"></div><span class="team-name">Өмнөговь</span></div></td>
+            <td class="medal-cell g">1</td>
+            <td class="medal-cell s">2</td>
+            <td class="medal-cell b">3</td>
+            <td class="medal-total">6</td>
+          </tr>
+          <tr>
+            <td class="rank-cell">4</td>
+            <td class="left"><div class="team-cell"><div class="aimag-flag flag-4"></div><span class="team-name">Увс</span></div></td>
+            <td class="medal-cell g">1</td>
+            <td class="medal-cell s">1</td>
+            <td class="medal-cell b">2</td>
+            <td class="medal-total">4</td>
+          </tr>
+          <tr>
+            <td class="rank-cell">5</td>
+            <td class="left"><div class="team-cell"><div class="aimag-flag flag-1"></div><span class="team-name">Дархан-Уул</span></div></td>
+            <td class="medal-cell g">0</td>
+            <td class="medal-cell s">1</td>
+            <td class="medal-cell b">2</td>
+            <td class="medal-total">3</td>
+          </tr>
+          <tr>
+            <td class="rank-cell">6</td>
+            <td class="left"><div class="team-cell"><div class="aimag-flag flag-2"></div><span class="team-name">Орхон</span></div></td>
+            <td class="medal-cell g">0</td>
+            <td class="medal-cell s">0</td>
+            <td class="medal-cell b">1</td>
+            <td class="medal-total">1</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <aside class="medal-aside">
+        <span class="eyebrow">Сүүлд олгогдсон</span>
+        <h3 class="medal-aside-title">Шинэ медалиуд</h3>
+        <div class="medal-recent">
+          <div class="recent-row">
+            <div class="recent-medal g">G</div>
+            <div class="recent-text">
+              <div class="t1">Төв аймаг — Эр сагсан бөмбөг</div>
+              <div class="t2">Финал · 78 — 65</div>
+            </div>
+            <div class="recent-when">13:42</div>
+          </div>
+          <div class="recent-row">
+            <div class="recent-medal s">S</div>
+            <div class="recent-text">
+              <div class="t1">Сэлэнгэ — Эр сагсан бөмбөг</div>
+              <div class="t2">Финал · 65 — 78</div>
+            </div>
+            <div class="recent-when">13:42</div>
+          </div>
+          <div class="recent-row">
+            <div class="recent-medal b">B</div>
+            <div class="recent-text">
+              <div class="t1">Дархан-Уул — Шатар баг</div>
+              <div class="t2">9-р тур · 7.0 оноо</div>
+            </div>
+            <div class="recent-when">12:18</div>
+          </div>
+          <div class="recent-row">
+            <div class="recent-medal g">G</div>
+            <div class="recent-text">
+              <div class="t1">Увс — Дартс баг</div>
+              <div class="t2">501 · 3 leg-ийн дараа</div>
+            </div>
+            <div class="recent-when">11:55</div>
+          </div>
+        </div>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════════
+     HOST AIMAGS — DARK · 4 aimags
+     ════════════════════════════════════════════════════════════════ -->
+<section class="host-section section">
+  <div class="wrap-wide">
+    <div class="section-header">
+      <div>
+        <span class="eyebrow">Host Provinces · 2026</span>
+        <h2 class="section-title">Хост <span class="gold">аймгууд</span></h2>
+      </div>
+      <a href="#" class="section-action">Наадмын түүх →</a>
+    </div>
+
+    <div class="host-grid">
+      <div class="host-card">
+        <div class="host-crest"><span class="host-crest-mark">ӨМ</span></div>
+        <div>
+          <div class="host-name">Өмнөговь</div>
+          <div class="host-role">Хост аймаг</div>
+          <div class="host-stat">Тамирчин · <span class="mono">76</span></div>
+        </div>
+      </div>
+      <div class="host-card">
+        <div class="host-crest"><span class="host-crest-mark">СЭЛ</span></div>
+        <div>
+          <div class="host-name">Сэлэнгэ</div>
+          <div class="host-role">Хост аймаг</div>
+          <div class="host-stat">Тамирчин · <span class="mono">98</span></div>
+        </div>
+      </div>
+      <div class="host-card">
+        <div class="host-crest"><span class="host-crest-mark">ТӨВ</span></div>
+        <div>
+          <div class="host-name">Төв</div>
+          <div class="host-role">Хост аймаг</div>
+          <div class="host-stat">Тамирчин · <span class="mono">142</span></div>
+        </div>
+      </div>
+      <div class="host-card">
+        <div class="host-crest"><span class="host-crest-mark">УВС</span></div>
+        <div>
+          <div class="host-name">Увс</div>
+          <div class="host-role">Хост аймаг</div>
+          <div class="host-stat">Тамирчин · <span class="mono">64</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════════
+     ABOUT / FACTS — CREAM
+     ════════════════════════════════════════════════════════════════ -->
+<section class="section facts-section">
+  <div class="wrap-wide">
+    <div class="section-header">
+      <div>
+        <span class="eyebrow">About the Games</span>
+        <h2 class="section-title">Наадмын <span class="gold">тухай</span></h2>
+      </div>
+    </div>
+
+    <div class="facts-grid">
+      <div class="facts-text">
+        <p>"Монгол 87/89" Төгсөгчдийн Холбоо ТББ нь Монгол улсын ерөнхий боловсролын сургуулийг 87, 89 онд төгссөн нэгэн үеийнхнийг нэгтгэн, нийгэмд бодит хувь нэмэр оруулах зорилгоор үйл ажиллагаагаа явуулдаг.</p>
+        <p>Спорт наадам нь уламжлалт арга хэмжээ бөгөөд өмнөх IV наадмууд Улаанбаатар, Эрдэнэт, Дархан-Уул хотуудад амжилттай зохиогдсон. Энэхүү <strong>V удаагийн бүсийн наадмыг Өмнөговь, Сэлэнгэ, Төв, Увс</strong> аймгийн төгсөгчид хамтран Улаанбаатар хотын "Буянт Ухаа" спорт ордонд зохион байгуулна.</p>
+        <p>Наадмын уриа — <em style="color:var(--gold-dark);font-style:normal;font-weight:600;">"Өнгөлөг · Сүрлэг · Тэнгэрлэг · Ухаалаг"</em>. 21 аймгийн 1,240 гаруй тамирчин 5 төрөлд хүч сорин, нөхөрлөл, шударга өрсөлдөөн, спортын баяр баясгаланг түгээх юм.</p>
+      </div>
+
+      <div class="facts-list">
+        <div class="fact-row"><span class="fact-num">01</span><span class="fact-label">Наадмын дугаар</span><span class="fact-val">V</span></div>
+        <div class="fact-row"><span class="fact-num">02</span><span class="fact-label">Үргэлжлэх хугацаа</span><span class="fact-val">2 өдөр</span></div>
+        <div class="fact-row"><span class="fact-num">03</span><span class="fact-label">Спортын төрөл</span><span class="fact-val">5</span></div>
+        <div class="fact-row"><span class="fact-num">04</span><span class="fact-label">Тэмцээний ангилал</span><span class="fact-val">7</span></div>
+        <div class="fact-row"><span class="fact-num">05</span><span class="fact-label">Оролцох аймаг</span><span class="fact-val">21</span></div>
+        <div class="fact-row"><span class="fact-num">06</span><span class="fact-label">Тамирчдын тоо</span><span class="fact-val">1,240+</span></div>
+        <div class="fact-row"><span class="fact-num">07</span><span class="fact-label">Үндсэн заал</span><span class="fact-val">Буянт Ухаа</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════════
+     SPONSORS — DARK
+     ════════════════════════════════════════════════════════════════ -->
+<section class="sponsors">
+  <div class="wrap-wide">
+    <div class="sponsors-head">
+      <span class="eyebrow">Partners &amp; Sponsors</span>
+      <h2 class="section-title" style="font-size:32px; margin-top:8px;">Ивээн <span class="gold">тэтгэгчид</span></h2>
+    </div>
+    <div class="sponsors-tiers">
+      <div class="tier-row platinum">
+        <span class="tier-label">Алтан<br/>гишүүн</span>
+        <div class="tier-logos">
+          <div class="logo-placeholder">[ Sponsor 1 ]</div>
+          <div class="logo-placeholder">[ Sponsor 2 ]</div>
+          <div class="logo-placeholder">[ Sponsor 3 ]</div>
+        </div>
+      </div>
+      <div class="tier-row gold">
+        <span class="tier-label">Дэмжигч</span>
+        <div class="tier-logos">
+          <div class="logo-placeholder">[ Logo ]</div>
+          <div class="logo-placeholder">[ Logo ]</div>
+          <div class="logo-placeholder">[ Logo ]</div>
+          <div class="logo-placeholder">[ Logo ]</div>
+        </div>
+      </div>
+      <div class="tier-row silver">
+        <span class="tier-label">Хамтрагч</span>
+        <div class="tier-logos">
+          <div class="logo-placeholder">[ Logo ]</div>
+          <div class="logo-placeholder">[ Logo ]</div>
+          <div class="logo-placeholder">[ Logo ]</div>
+          <div class="logo-placeholder">[ Logo ]</div>
+          <div class="logo-placeholder">[ Logo ]</div>
+          <div class="logo-placeholder">[ Logo ]</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ════════════════════════════════════════════════════════════════
+     FOOTER
+     ════════════════════════════════════════════════════════════════ -->
+<footer class="footer">
+  <div class="wrap-wide footer-top">
+    <div class="footer-brand brand">
+      <div class="emblem"><img src="assets/logo-white.png" alt="Лого"/></div>
+      <div class="brand-text">
+        <div class="brand-line-1">Монгол 87/89 ТББ</div>
+        <div class="brand-line-2">V Спорт Наадам</div>
+        <p>Монгол улсын ерөнхий боловсролын сургуулийг 87, 89 онд төгссөн нэгэн үеийнхний албан ёсны спорт наадам. "Өнгөлөг · Сүрлэг · Тэнгэрлэг · Ухаалаг"</p>
+      </div>
+    </div>
+    <div class="footer-col">
+      <h4>Наадам</h4>
+      <ul>
+        <li><a href="#">Хуваарь</a></li>
+        <li><a href="#">Спортын төрөл</a></li>
+        <li><a href="#">Үр дүн</a></li>
+        <li><a href="#">Медалийн хүснэгт</a></li>
+        <li><a href="#">Багууд</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>Мэдээлэл</h4>
+      <ul>
+        <li><a href="#">Сүүлийн мэдээ</a></li>
+        <li><a href="#">Хэвлэлийн өрөө</a></li>
+        <li><a href="#">Цомог</a></li>
+        <li><a href="#">Шууд дамжуулалт</a></li>
+      </ul>
+    </div>
+    <div class="footer-col">
+      <h4>Холбоо барих</h4>
+      <ul>
+        <li>+976 9911 0000</li>
+        <li>info@m8789.mn</li>
+        <li>Улаанбаатар, СБД</li>
+        <li><a href="#">Facebook</a></li>
+        <li><a href="#">YouTube</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="wrap-wide footer-bottom">
+    <span>© 2026 Монгол 87/89 ТББ. Бүх эрх хуулиар хамгаалагдсан.</span>
+    <span>"Буянт Ухаа" спорт ордон · Улаанбаатар</span>
+  </div>
+</footer>
+
+</body>
+</html>
