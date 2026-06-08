@@ -78,4 +78,6 @@ slides/
 mongolia-map.jpg
 logo_storyboard.png
 LOGO*.png
+!public/logo-*.png
+!public/logo-*.jpg
 make_slides*.py
