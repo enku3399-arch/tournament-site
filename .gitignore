@@ -46,6 +46,14 @@ next-env.d.ts
 *.png
 *.jpg
 *.jpeg
+!public/logos/*.png
+!public/logos/*.jpg
+!public/media/**/*.png
+!public/media/**/*.jpg
+!public/media/**/*.jpeg
+!public/media/**/*.webp
+!public/*.png
+!public/*.jpg
 storyboard*
 slides*
 phase*
