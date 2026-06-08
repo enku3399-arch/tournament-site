@@ -433,14 +433,15 @@ export default async function HomePage() {
                     </td>
                     {medalSportList.map(s => {
                       const p = row.sportPlacements.find(sp => sp.sportId === s.id)
-                      const r = p?.rank
+                      const rank = p?.rank
+                      const score = p?.score
                       return (
                         <td key={s.id} style={{
                           textAlign: 'center', fontFamily: 'var(--mono)', fontSize: 12, padding: '0 4px',
-                          color: r === 1 ? '#FFD700' : r === 2 ? '#C0C0C0' : r === 3 ? '#CD7F32' : 'var(--fog)',
-                          fontWeight: r && r <= 3 ? 700 : 400,
+                          color: rank === 1 ? '#FFD700' : rank === 2 ? '#C0C0C0' : rank === 3 ? '#CD7F32' : 'var(--fog)',
+                          fontWeight: rank && rank <= 3 ? 700 : 400,
                         }}>
-                          {r ?? <span style={{ opacity: 0.15 }}>—</span>}
+                          {score != null ? score : <span style={{ opacity: 0.15 }}>—</span>}
                         </td>
                       )
                     })}

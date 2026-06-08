@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import AdminBracket from '@/components/AdminBracket'
@@ -10,6 +10,9 @@ type Group = { id: string; name: string; advance_count: number }
 type Match = {
   id: string; match_number: number; round: number; stage: string; status: string
   group_id: string | null; judge_code: string
+  court: number; schedule_order: number | null
+  team1_source: string | null; team2_source: string | null
+  set_scores: [number, number][] | null
   team1: { id: string; name: string } | null
   team2: { id: string; name: string } | null
   winner: { id: string; name: string } | null
@@ -37,8 +40,12 @@ export default function GroupConfigPage() {
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null)
   const [editingTeamName, setEditingTeamName] = useState('')
   const [activeTab, setActiveTab] = useState<'config' | 'matches' | 'bracket'>('config')
+  const [activeCourt, setActiveCourt] = useState<number>(1)
+  const [orderDirty, setOrderDirty] = useState(false)
+  const [savingOrder, setSavingOrder] = useState(false)
   const [newTeamName, setNewTeamName] = useState('')
   const [addingTeam, setAddingTeam] = useState(false)
+  const [useTwoCourts, setUseTwoCourts] = useState(true)
   const [directTeamCount, setDirectTeamCount] = useState(8)
   const [bulkOpen, setBulkOpen] = useState(false)
   const [bulkTab, setBulkTab] = useState<'text' | 'tournament'>('text')
@@ -74,19 +81,59 @@ export default function GroupConfigPage() {
         setAssignments(map)
       }
       setMatches(matchesRes.matches ?? [])
-      const ms = matchesRes.matches ?? []
-      if (ms.some((m: any) => m.stage === 'knockout')) setActiveTab('bracket')
-      else if (ms.length > 0) setActiveTab('matches')
     } catch (e) { console.error('Load error:', e) }
     setLoading(false)
   }, [sportId])
 
   useEffect(() => { load() }, [load])
 
+  // Compute group standings from current match results for knockout dropdowns
+  const groupStandings = useMemo(() => {
+    const standings = new Map<string, { teamId: string; name: string }[]>()
+    for (const group of groups) {
+      const groupTeamIds: string[] = []
+      for (const [teamId, letter] of assignments) {
+        if (letter === group.name) groupTeamIds.push(teamId)
+      }
+      const pts = new Map<string, number>()
+      const gd = new Map<string, number>()
+      const gf = new Map<string, number>()
+      for (const tid of groupTeamIds) { pts.set(tid, 0); gd.set(tid, 0); gf.set(tid, 0) }
+      const gms = matches.filter(m => m.group_id === group.id && m.stage === 'group')
+      const allDone = gms.length > 0 && gms.every(m => m.status === 'completed')
+      if (!allDone) { standings.set(group.name, []); continue }
+      for (const m of gms) {
+        const t1Id = m.team1?.id; const t2Id = m.team2?.id
+        if (!t1Id || !t2Id || m.team1_score == null || m.team2_score == null) continue
+        const s1 = m.team1_score; const s2 = m.team2_score
+        pts.set(t1Id, (pts.get(t1Id) ?? 0) + (s1 > s2 ? 3 : s1 === s2 ? 1 : 0))
+        pts.set(t2Id, (pts.get(t2Id) ?? 0) + (s2 > s1 ? 3 : s1 === s2 ? 1 : 0))
+        gd.set(t1Id, (gd.get(t1Id) ?? 0) + s1 - s2)
+        gd.set(t2Id, (gd.get(t2Id) ?? 0) + s2 - s1)
+        gf.set(t1Id, (gf.get(t1Id) ?? 0) + s1)
+        gf.set(t2Id, (gf.get(t2Id) ?? 0) + s2)
+      }
+      const ranked = [...groupTeamIds].sort((a, b) =>
+        ((pts.get(b) ?? 0) - (pts.get(a) ?? 0)) ||
+        ((gd.get(b) ?? 0) - (gd.get(a) ?? 0)) ||
+        ((gf.get(b) ?? 0) - (gf.get(a) ?? 0))
+      )
+      standings.set(group.name, ranked.map(tid => ({ teamId: tid, name: teams.find(t => t.id === tid)?.name ?? '' })))
+    }
+    return standings
+  }, [groups, matches, assignments, teams])
+
   const letters = Array.from({ length: groupCount }, (_, i) => String.fromCharCode(65 + i))
   const canGenerate = savedOk || groups.length > 0
-  const groupMatches = matches.filter(m => m.stage === 'group')
-  const knockoutMatches = matches.filter(m => m.stage === 'knockout')
+  const sortByOrder = (a: Match, b: Match) =>
+    ((a.schedule_order ?? a.match_number) - (b.schedule_order ?? b.match_number))
+
+  const groupMatches = matches.filter(m => m.stage === 'group').sort(sortByOrder)
+  const knockoutMatches = matches.filter(m => m.stage === 'knockout').sort(sortByOrder)
+  const hasTwoCourts = matches.some(m => m.court === 2)
+  const isVolleyball = !!sport?.name?.toLowerCase().includes('волейбол')
+  const courtGroupMatches = groupMatches.filter(m => !hasTwoCourts || m.court === activeCourt)
+  const courtKnockoutMatches = knockoutMatches.filter(m => !hasTwoCourts || m.court === activeCourt)
 
   async function addTeam() {
     if (!newTeamName.trim()) return
@@ -136,15 +183,35 @@ export default function GroupConfigPage() {
     setEditingTeamId(null)
   }
 
-  async function saveMatchScore(matchId: string, t1: number, t2: number) {
+  async function saveMatchScore(matchId: string, t1: number, t2: number, setScores?: [number, number][]) {
+    const body: Record<string, any> = { team1_score: t1, team2_score: t2, finalize: true }
+    if (setScores) body.set_scores = setScores
     const res = await fetch(`/api/matches/${matchId}/score`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ team1_score: t1, team2_score: t2, finalize: true }),
+      body: JSON.stringify(body),
     })
     const data = await res.json()
     if (!res.ok) throw new Error(data.error)
     setMatches(prev => prev.map(m => m.id === matchId ? { ...m, ...data, group: m.group } : m))
+  }
+
+  function changeMatchOrder(matchId: string, newOrder: number) {
+    if (!newOrder || newOrder < 1) return
+    setMatches(prev => prev.map(m => m.id === matchId ? { ...m, schedule_order: newOrder } : m))
+    setOrderDirty(true)
+  }
+
+  async function saveOrder() {
+    setSavingOrder(true)
+    const orders = matches.map(m => ({ id: m.id, schedule_order: m.schedule_order ?? m.match_number }))
+    const res = await fetch(`/api/admin/sport/${sportId}/matches/save-order`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ orders }),
+    })
+    if (res.ok) setOrderDirty(false)
+    setSavingOrder(false)
   }
 
   async function resetMatch(matchId: string) {
@@ -156,6 +223,62 @@ export default function GroupConfigPage() {
     const data = await res.json()
     if (!res.ok) throw new Error(data.error)
     setMatches(prev => prev.map(m => m.id === matchId ? { ...m, ...data, group: m.group } : m))
+  }
+
+  async function changeMatchCourt(matchId: string, court: number) {
+    setMatches(prev => prev.map(m => m.id === matchId ? { ...m, court } : m))
+    await fetch(`/api/admin/sport/${sportId}/matches/${matchId}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ court }),
+    })
+  }
+
+  async function addKnockoutMatch(court: number) {
+    try {
+      const res = await fetch(`/api/admin/sport/${sportId}/matches`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ tournamentId: id, court }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error)
+      setMatches(prev => [...prev, { ...data.match, team1_source: null, team2_source: null }])
+    } catch (e: any) { alert('Алдаа: ' + e.message) }
+  }
+
+  async function deleteKnockoutMatch(matchId: string) {
+    if (!confirm('Энэ тоглолтыг устгах уу?')) return
+    try {
+      const res = await fetch(`/api/admin/sport/${sportId}/matches/${matchId}`, { method: 'DELETE' })
+      if (!res.ok) { const d = await res.json(); throw new Error(d.error) }
+      setMatches(prev => prev.filter(m => m.id !== matchId))
+    } catch (e: any) { alert('Алдаа: ' + e.message) }
+  }
+
+  async function handleSourceChange(matchId: string, slot: 'team1' | 'team2', source: string) {
+    const resolvedTeam = source ? (() => {
+      const [gName, rankStr] = source.split(':')
+      const rank = parseInt(rankStr) - 1
+      const st = groupStandings.get(gName)
+      return st?.[rank] ?? null
+    })() : null
+
+    setMatches(prev => prev.map(m => {
+      if (m.id !== matchId) return m
+      return slot === 'team1'
+        ? { ...m, team1_source: source || null, team1: resolvedTeam ? { id: resolvedTeam.teamId, name: resolvedTeam.name } : null }
+        : { ...m, team2_source: source || null, team2: resolvedTeam ? { id: resolvedTeam.teamId, name: resolvedTeam.name } : null }
+    }))
+
+    await fetch(`/api/admin/sport/${sportId}/matches/${matchId}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        [slot === 'team1' ? 'team1_source' : 'team2_source']: source || null,
+        [slot === 'team1' ? 'team1_id' : 'team2_id']: resolvedTeam?.teamId ?? null,
+      }),
+    })
   }
 
   async function saveConfig() {
@@ -178,10 +301,10 @@ export default function GroupConfigPage() {
     try {
       const res = await fetch(`/api/admin/sport/${sportId}/groups/generate-matches`, {
         method: 'POST', headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ tournamentId: id, judgeCode: judgeCode.trim() || undefined }),
+        body: JSON.stringify({ tournamentId: id, judgeCode: judgeCode.trim() || undefined, useTwoCourts }),
       })
       const data = await res.json()
-      if (data.ok) { await load(); setActiveTab('matches') }
+      if (data.ok) { await load(); setActiveTab('matches'); setOrderDirty(false) }
       else { setMsg('❌ ' + (data.error ?? 'Алдаа')); setGenerating(false) }
     } catch (e: any) { setMsg('❌ ' + e.message); setGenerating(false) }
   }
@@ -622,6 +745,15 @@ export default function GroupConfigPage() {
 
           {/* Action buttons */}
           <div className="space-y-3">
+            <label className="flex items-center gap-2 cursor-pointer w-fit">
+              <input
+                type="checkbox"
+                checked={useTwoCourts}
+                onChange={e => setUseTwoCourts(e.target.checked)}
+                className="h-4 w-4 rounded border-border accent-primary"
+              />
+              <span className="text-sm text-muted">2 талбай ашиглах <span className="text-xs">(A,B,C → 1-р / D,E,F → 2-р)</span></span>
+            </label>
             <div className="flex flex-wrap gap-3">
               <button onClick={saveConfig} disabled={saving}
                 className="rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-hover disabled:opacity-50 transition-colors">
@@ -643,7 +775,7 @@ export default function GroupConfigPage() {
 
       {/* ── MATCHES TAB ── */}
       {activeTab === 'matches' && (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {matches.length === 0 ? (
             <div className="rounded-xl border border-dashed border-border p-10 text-center text-muted">
               <p className="mb-2">Тоглолт үүсгэгдээгүй байна</p>
@@ -653,67 +785,108 @@ export default function GroupConfigPage() {
             </div>
           ) : (
             <>
-              {/* Group matches */}
-              {groupMatches.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-bold text-muted uppercase tracking-wide mb-3">⊞ Хэсгийн шат</h3>
-                  <div className="space-y-4">
-                    {groupIds.map(([gid, group]) => {
-                      const gms = groupMatches.filter(m => m.group_id === gid)
-                      const doneCount = gms.filter(m => m.status === 'completed').length
-                      return (
-                        <div key={gid} className="rounded-xl border border-border overflow-hidden">
-                          <div className="bg-surface-2 px-4 py-2.5 flex items-center gap-2 border-b border-border">
-                            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary text-xs font-bold text-white">
-                              {group?.name ?? '?'}
-                            </span>
-                            <span className="font-semibold text-sm">Хэсэг {group?.name}</span>
-                            <span className="ml-auto text-xs text-muted">{doneCount}/{gms.length} дууссан</span>
-                          </div>
-                          <div className="divide-y divide-border">
-                            {gms.map(m => <MatchScoreRow key={m.id} match={m} onSave={saveMatchScore} onReset={resetMatch} />)}
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Knockout matches */}
-              {knockoutMatches.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-bold text-muted uppercase tracking-wide mb-3">⟁ Нугалааны шат</h3>
-                  <div className="rounded-xl border border-border divide-y divide-border overflow-hidden">
-                    {knockoutMatches.map(m => <MatchScoreRow key={m.id} match={m} onSave={saveMatchScore} onReset={resetMatch} />)}
-                  </div>
-                </div>
-              )}
-
-              {/* Generate knockout button */}
-              {groupMatches.length > 0 && knockoutMatches.length === 0 && (
-                <div className="rounded-xl border border-accent/30 bg-accent/5 p-4 flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-accent">Хэсгийн шат дуусвал нугалааны bracket үүсгэнэ үү</p>
-                    <p className="text-xs text-muted mt-1">
-                      Дууссан: {groupMatches.filter(m => m.status === 'completed').length}/{groupMatches.length}
-                    </p>
-                  </div>
-                  <button onClick={generateKnockout} disabled={generating}
-                    className="rounded-lg border border-accent/50 bg-accent/10 px-4 py-2 text-sm font-semibold text-accent hover:bg-accent/20 disabled:opacity-50 transition-colors shrink-0">
-                    {generating ? '...' : '⟁ Bracket үүсгэх'}
+              {/* Save order button */}
+              {orderDirty && (
+                <div className="flex items-center gap-3 rounded-lg border border-accent/40 bg-accent/10 px-4 py-2.5">
+                  <span className="text-sm text-accent flex-1">Дараалал өөрчлөгдсөн</span>
+                  <button
+                    onClick={saveOrder}
+                    disabled={savingOrder}
+                    className="rounded-lg bg-accent px-5 py-1.5 text-sm font-bold text-black hover:bg-amber-400 disabled:opacity-50 transition-colors shrink-0"
+                  >
+                    {savingOrder ? 'Хадгалж байна...' : '💾 Хадгалах'}
                   </button>
                 </div>
               )}
 
-              {knockoutMatches.length > 0 && (
-                <div className="text-center">
-                  <Link href={`/t/${id}/${sportId}#knockout`} target="_blank"
-                    className="text-sm text-primary hover:underline">
-                    Нугалааны схем харах → /t/{id.slice(0, 6)}.../{sportId.slice(0, 6)}... #knockout
-                  </Link>
+              {/* Court tabs — зөвхөн 2 талбайтай спортод */}
+              {hasTwoCourts && (
+                <div className="flex gap-1 p-1 rounded-lg bg-surface-2 border border-border w-fit">
+                  {[1, 2].map(c => (
+                    <button
+                      key={c}
+                      onClick={() => setActiveCourt(c)}
+                      className={`px-4 py-1.5 rounded-md text-sm font-semibold transition-colors ${
+                        activeCourt === c
+                          ? 'bg-primary text-white shadow-sm'
+                          : 'text-muted hover:text-foreground'
+                      }`}
+                    >
+                      {c}-р талбай
+                    </button>
+                  ))}
                 </div>
               )}
+
+              {/* Хэсгийн шат — flat unified list */}
+              {courtGroupMatches.length > 0 && (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="text-xs font-bold text-muted uppercase tracking-wide">⊞ Хэсгийн шат</h3>
+                    <span className="text-xs text-muted">
+                      {courtGroupMatches.filter(m => m.status === 'completed').length}/{courtGroupMatches.length} дууссан
+                    </span>
+                  </div>
+                  <div className="rounded-xl border border-border divide-y divide-border overflow-hidden">
+                    {courtGroupMatches.map((m) => (
+                      <MatchScoreRow
+                        key={m.id}
+                        match={m}
+                        onSave={saveMatchScore}
+                        onReset={resetMatch}
+                        onOrderChange={hasTwoCourts ? changeMatchOrder : undefined}
+                        onCourtChange={hasTwoCourts ? changeMatchCourt : undefined}
+                        isVolleyball={isVolleyball}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Нугалааны шат — гараар удирдах */}
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-xs font-bold text-muted uppercase tracking-wide">⟁ Нугалааны шат</h3>
+                  <div className="flex items-center gap-2">
+                    {knockoutMatches.length > 0 && (
+                      <Link href={`/t/${id}/${sportId}#knockout`} target="_blank"
+                        className="text-xs text-primary hover:underline">
+                        Схем →
+                      </Link>
+                    )}
+                    <button
+                      onClick={() => addKnockoutMatch(activeCourt)}
+                      className="flex items-center gap-1 rounded-lg border border-border px-2.5 py-1 text-xs font-medium text-muted hover:text-foreground hover:border-primary/50 transition-colors"
+                    >
+                      + Нэмэх
+                    </button>
+                  </div>
+                </div>
+                {courtKnockoutMatches.length > 0 ? (
+                  <div className="rounded-xl border border-border divide-y divide-border overflow-hidden">
+                    {courtKnockoutMatches.map((m) => (
+                      <KnockoutManageRow
+                        key={m.id}
+                        match={m}
+                        groups={groups}
+                        groupStandings={groupStandings}
+                        advanceCount={advanceCount}
+                        onSourceChange={handleSourceChange}
+                        onDelete={deleteKnockoutMatch}
+                        onSave={saveMatchScore}
+                        onReset={resetMatch}
+                        onOrderChange={changeMatchOrder}
+                        onCourtChange={hasTwoCourts ? changeMatchCourt : undefined}
+                        isVolleyball={isVolleyball}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-dashed border-border py-6 text-center text-sm text-muted">
+                    Нугалааны тоглолт байхгүй байна — "+ Нэмэх" товч дарж нэмнэ үү
+                  </div>
+                )}
+              </div>
             </>
           )}
         </div>
@@ -789,22 +962,65 @@ export default function GroupConfigPage() {
   )
 }
 
-function MatchScoreRow({
-  match, onSave, onReset,
+function KnockoutManageRow({
+  match, groups, groupStandings, advanceCount,
+  onSourceChange, onDelete, onSave, onReset, onOrderChange, onCourtChange, isVolleyball,
 }: {
   match: Match
-  onSave: (id: string, t1: number, t2: number) => Promise<void>
+  groups: Group[]
+  groupStandings: Map<string, { teamId: string; name: string }[]>
+  advanceCount: number
+  onSourceChange: (matchId: string, slot: 'team1' | 'team2', source: string) => void
+  onDelete: (matchId: string) => void
+  onSave: (id: string, t1: number, t2: number, setScores?: [number, number][]) => Promise<void>
   onReset: (id: string) => Promise<void>
+  onOrderChange?: (matchId: string, order: number) => void
+  onCourtChange?: (matchId: string, court: number) => void
+  isVolleyball?: boolean
 }) {
   const [editing, setEditing] = useState(false)
+  const [scoreMode, setScoreMode] = useState<'sets' | 'ratio'>('sets')
+  const [sets, setSets] = useState<[number, number][]>(
+    match.set_scores?.length ? match.set_scores : [[0, 0], [0, 0], [0, 0]]
+  )
   const [t1, setT1] = useState(match.team1_score ?? 0)
   const [t2, setT2] = useState(match.team2_score ?? 0)
   const [saving, setSaving] = useState(false)
   const isDone = match.status === 'completed'
+  const hasTeams = !!(match.team1 && match.team2)
+
+  const autoRatio = sets.reduce<[number, number]>(([r1, r2], [s1, s2]) =>
+    s1 > s2 ? [r1 + 1, r2] : s2 > s1 ? [r1, r2 + 1] : [r1, r2], [0, 0])
+  const hasSetData = sets.some(([s1, s2]) => s1 > 0 || s2 > 0)
+
+  const sourceOptions = useMemo(() => {
+    const opts: { value: string; label: string; teamName: string | null }[] = [
+      { value: '', label: '— Сонгоно уу —', teamName: null },
+    ]
+    for (const group of [...groups].sort((a, b) => a.name.localeCompare(b.name))) {
+      const standing = groupStandings.get(group.name) ?? []
+      for (let rank = 1; rank <= advanceCount; rank++) {
+        const teamInfo = standing[rank - 1]
+        opts.push({
+          value: `${group.name}:${rank}`,
+          label: `${group.name} хэсгийн ${rank}-р байр`,
+          teamName: teamInfo?.name ?? null,
+        })
+      }
+    }
+    return opts
+  }, [groups, groupStandings, advanceCount])
 
   async function save() {
     setSaving(true)
-    try { await onSave(match.id, t1, t2); setEditing(false) }
+    try {
+      if (isVolleyball && scoreMode === 'sets') {
+        await onSave(match.id, autoRatio[0], autoRatio[1], hasSetData ? sets : undefined)
+      } else {
+        await onSave(match.id, t1, t2)
+      }
+      setEditing(false)
+    }
     catch (e: any) { alert(e.message) }
     setSaving(false)
   }
@@ -812,15 +1028,266 @@ function MatchScoreRow({
   async function reset() {
     if (!confirm('Үр дүн устгах уу?')) return
     setSaving(true)
-    try { await onReset(match.id); setT1(0); setT2(0) }
+    try {
+      await onReset(match.id)
+      setSets([[0, 0], [0, 0], [0, 0]])
+    }
     catch (e: any) { alert(e.message) }
     setSaving(false)
   }
 
   return (
-    <div className="px-3 sm:px-4 py-3">
+    <div className="px-3 sm:px-4 py-2.5">
+      <div className="flex items-center gap-1.5">
+        {onOrderChange && (
+          <input
+            type="number" min={1}
+            key={`${match.id}-${match.schedule_order ?? match.match_number}`}
+            defaultValue={match.schedule_order ?? match.match_number}
+            className="w-10 shrink-0 rounded border border-border/60 bg-surface-2 px-1 py-0.5 text-center text-xs text-muted focus:border-primary focus:text-foreground focus:outline-none"
+            onKeyDown={e => { if (e.key === 'Enter') onOrderChange(match.id, parseInt((e.target as HTMLInputElement).value) || 1) }}
+            onBlur={e => onOrderChange(match.id, parseInt(e.target.value) || 1)}
+          />
+        )}
+        {onCourtChange && (
+          <button
+            onClick={() => onCourtChange(match.id, match.court === 1 ? 2 : 1)}
+            className={`flex h-6 w-7 shrink-0 items-center justify-center rounded text-xs font-bold transition-colors ${
+              match.court === 2 ? 'bg-accent/20 text-accent' : 'bg-surface-2 text-muted hover:text-foreground'
+            }`}
+            title="Талбай солих"
+          >
+            T{match.court}
+          </button>
+        )}
+
+        {/* Team 1 */}
+        <div className="flex-1 min-w-0">
+          {isDone ? (
+            <span className={`text-sm font-medium ${match.winner?.id === match.team1?.id ? 'text-live font-bold' : ''}`}>
+              {match.team1?.name ?? 'TBD'}
+            </span>
+          ) : (
+            <select
+              value={match.team1_source ?? ''}
+              onChange={e => onSourceChange(match.id, 'team1', e.target.value)}
+              className="w-full rounded border border-border/60 bg-surface px-1.5 py-1 text-xs"
+            >
+              {sourceOptions.map(opt => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}{opt.teamName ? ` (${opt.teamName})` : ''}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+
+        <span className={`shrink-0 w-12 text-center text-xs font-bold rounded px-1 py-0.5 ${isDone ? 'bg-surface-2' : 'text-muted'}`}>
+          {isDone ? `${match.team1_score}:${match.team2_score}` : 'vs'}
+        </span>
+
+        {/* Team 2 */}
+        <div className="flex-1 min-w-0">
+          {isDone ? (
+            <span className={`text-sm font-medium ${match.winner?.id === match.team2?.id ? 'text-live font-bold' : ''}`}>
+              {match.team2?.name ?? 'TBD'}
+            </span>
+          ) : (
+            <select
+              value={match.team2_source ?? ''}
+              onChange={e => onSourceChange(match.id, 'team2', e.target.value)}
+              className="w-full rounded border border-border/60 bg-surface px-1.5 py-1 text-xs"
+            >
+              {sourceOptions.map(opt => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}{opt.teamName ? ` (${opt.teamName})` : ''}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+
+        {/* Actions */}
+        <div className="flex items-center gap-1 shrink-0">
+          {isDone ? (
+            <button onClick={reset} disabled={saving}
+              className="rounded border border-border px-1.5 py-0.5 text-xs text-muted hover:text-danger hover:border-danger/40 disabled:opacity-40 transition-colors">
+              ↩
+            </button>
+          ) : hasTeams ? (
+            <button onClick={() => setEditing(v => !v)} disabled={saving}
+              className="rounded-lg border border-primary/50 bg-primary/10 px-2 py-1 text-xs font-semibold text-primary hover:bg-primary/20 disabled:opacity-40 transition-colors">
+              {editing ? '✕' : '✏️'}
+            </button>
+          ) : null}
+          <button
+            onClick={() => onDelete(match.id)}
+            className="rounded border border-border px-1.5 py-0.5 text-xs text-muted hover:text-danger hover:border-danger/40 transition-colors"
+            title="Тоглолт устгах"
+          >
+            🗑
+          </button>
+        </div>
+      </div>
+
+      {editing && hasTeams && (
+        <div className="mt-3 pt-3 border-t border-border space-y-2">
+          {isVolleyball ? (
+            scoreMode === 'sets' ? (
+              <div className="space-y-1.5">
+                {sets.map(([s1, s2], i) => {
+                  const winner = s1 > s2 ? match.team1?.name : s2 > s1 ? match.team2?.name : null
+                  return (
+                    <div key={i} className="flex items-center justify-center gap-2">
+                      <span className="w-16 shrink-0 text-right text-xs text-muted whitespace-nowrap">{i + 1}-р ээлж</span>
+                      <input type="number" min={0}
+                        className="w-14 shrink-0 rounded border border-border bg-surface-2 px-1 py-1 text-center font-bold text-sm focus:border-primary focus:outline-none"
+                        value={s1} onChange={e => setSets(prev => prev.map((s, j) => j === i ? [+e.target.value, s[1]] : s) as [number, number][])} />
+                      <span className="shrink-0 font-bold text-muted">:</span>
+                      <input type="number" min={0}
+                        className="w-14 shrink-0 rounded border border-border bg-surface-2 px-1 py-1 text-center font-bold text-sm focus:border-primary focus:outline-none"
+                        value={s2} onChange={e => setSets(prev => prev.map((s, j) => j === i ? [s[0], +e.target.value] : s) as [number, number][])} />
+                      <span className="w-20 shrink-0 truncate text-xs text-muted">{winner ?? ''}</span>
+                    </div>
+                  )
+                })}
+                <div className="flex items-center justify-between pt-1.5 border-t border-border/50">
+                  <span className="text-xs text-muted">Харьцаа:</span>
+                  <span className="text-sm font-bold tabular-nums">{autoRatio[0]} : {autoRatio[1]}</span>
+                  <button onClick={() => setScoreMode('ratio')} className="text-xs text-muted hover:text-foreground transition-colors">
+                    Гараар →
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="grid grid-cols-[1fr_4rem_1.25rem_4rem_1fr] items-center gap-2">
+                  <span className="text-xs text-muted text-right truncate">{match.team1?.name}</span>
+                  <input type="number" min={0} max={3} className="input text-center font-bold text-lg" value={t1}
+                    onChange={e => setT1(Math.max(0, Number(e.target.value)))} />
+                  <span className="text-muted font-bold text-center">:</span>
+                  <input type="number" min={0} max={3} className="input text-center font-bold text-lg" value={t2}
+                    onChange={e => setT2(Math.max(0, Number(e.target.value)))} />
+                  <span className="text-xs text-muted truncate">{match.team2?.name}</span>
+                </div>
+                <button onClick={() => setScoreMode('sets')} className="text-xs text-muted hover:text-foreground transition-colors">
+                  ← Ээлжээр
+                </button>
+              </div>
+            )
+          ) : (
+            <div className="grid grid-cols-[1fr_4rem_1.25rem_4rem_1fr] items-center gap-2">
+              <span className="text-xs text-muted text-right truncate">{match.team1?.name}</span>
+              <input type="number" min={0} className="input text-center font-bold text-lg" value={t1}
+                onChange={e => setT1(Math.max(0, Number(e.target.value)))} />
+              <span className="text-muted font-bold text-center">:</span>
+              <input type="number" min={0} className="input text-center font-bold text-lg" value={t2}
+                onChange={e => setT2(Math.max(0, Number(e.target.value)))} />
+              <span className="text-xs text-muted truncate">{match.team2?.name}</span>
+            </div>
+          )}
+          <button onClick={save} disabled={saving}
+            className="w-full rounded-lg bg-live px-4 py-2 text-sm font-bold text-black disabled:opacity-40 hover:bg-live/80">
+            {saving ? '...' : '✓ Хадгалах'}
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function MatchScoreRow({
+  match, onSave, onReset, onOrderChange, onCourtChange, isVolleyball,
+}: {
+  match: Match
+  onSave: (id: string, t1: number, t2: number, setScores?: [number, number][]) => Promise<void>
+  onReset: (id: string) => Promise<void>
+  onOrderChange?: (matchId: string, order: number) => void
+  onCourtChange?: (matchId: string, court: number) => void
+  isVolleyball?: boolean
+}) {
+  const [editing, setEditing] = useState(false)
+  const [scoreMode, setScoreMode] = useState<'sets' | 'ratio'>('sets')
+  const [sets, setSets] = useState<[number, number][]>(
+    match.set_scores?.length ? match.set_scores : [[0, 0], [0, 0], [0, 0]]
+  )
+  const [t1, setT1] = useState(match.team1_score ?? 0)
+  const [t2, setT2] = useState(match.team2_score ?? 0)
+  const [saving, setSaving] = useState(false)
+  const isDone = match.status === 'completed'
+
+  const autoRatio = sets.reduce<[number, number]>(([r1, r2], [s1, s2]) =>
+    s1 > s2 ? [r1 + 1, r2] : s2 > s1 ? [r1, r2 + 1] : [r1, r2], [0, 0])
+  const hasSetData = sets.some(([s1, s2]) => s1 > 0 || s2 > 0)
+
+  async function save() {
+    setSaving(true)
+    try {
+      if (isVolleyball && scoreMode === 'sets') {
+        await onSave(match.id, autoRatio[0], autoRatio[1], hasSetData ? sets : undefined)
+      } else {
+        await onSave(match.id, t1, t2)
+      }
+      setEditing(false)
+    }
+    catch (e: any) { alert(e.message) }
+    setSaving(false)
+  }
+
+  async function reset() {
+    if (!confirm('Үр дүн устгах уу?')) return
+    setSaving(true)
+    try {
+      await onReset(match.id)
+      setT1(0); setT2(0)
+      setSets([[0, 0], [0, 0], [0, 0]])
+    }
+    catch (e: any) { alert(e.message) }
+    setSaving(false)
+  }
+
+  return (
+    <div className="px-3 sm:px-4 py-2.5">
       <div className="flex items-center gap-1 sm:gap-2">
+        {/* Order input */}
+        {onOrderChange && (
+          <input
+            type="number"
+            min={1}
+            key={`${match.id}-${match.schedule_order ?? match.match_number}`}
+            defaultValue={match.schedule_order ?? match.match_number}
+            className="w-10 shrink-0 rounded border border-border/60 bg-surface-2 px-1 py-0.5 text-center text-xs text-muted focus:border-primary focus:text-foreground focus:outline-none"
+            onKeyDown={e => {
+              if (e.key === 'Enter') {
+                const val = parseInt((e.target as HTMLInputElement).value)
+                onOrderChange(match.id, val)
+              }
+            }}
+            onBlur={e => {
+              const val = parseInt(e.target.value)
+              onOrderChange(match.id, val)
+            }}
+          />
+        )}
         <span className="text-xs text-muted shrink-0 w-5">#{match.match_number}</span>
+        {/* Court toggle */}
+        {onCourtChange && (
+          <button
+            onClick={() => onCourtChange(match.id, match.court === 1 ? 2 : 1)}
+            className={`flex h-5 w-7 shrink-0 items-center justify-center rounded text-xs font-bold transition-colors ${
+              match.court === 2 ? 'bg-accent/20 text-accent' : 'bg-surface-2 text-muted hover:text-foreground'
+            }`}
+            title="Талбай солих"
+          >
+            T{match.court}
+          </button>
+        )}
+        {/* Group badge */}
+        {match.group?.name && (
+          <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/20 text-xs font-bold text-primary">
+            {match.group.name}
+          </span>
+        )}
         <span className={`flex-1 text-right text-xs sm:text-sm font-medium min-w-0 leading-tight ${isDone && match.winner?.id === match.team1?.id ? 'text-live font-bold' : ''}`}
           style={{ wordBreak: 'break-word' }}>
           {match.team1?.name ?? 'TBD'}
@@ -852,15 +1319,60 @@ function MatchScoreRow({
 
       {editing && (
         <div className="mt-3 pt-3 border-t border-border space-y-2">
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted flex-1 text-right min-w-0" style={{ wordBreak: 'break-word' }}>{match.team1?.name}</span>
-            <input type="number" min={0} className="input w-16 text-center font-bold text-lg shrink-0" value={t1}
-              onChange={e => setT1(Math.max(0, Number(e.target.value)))} />
-            <span className="text-muted font-bold shrink-0">:</span>
-            <input type="number" min={0} className="input w-16 text-center font-bold text-lg shrink-0" value={t2}
-              onChange={e => setT2(Math.max(0, Number(e.target.value)))} />
-            <span className="text-xs text-muted flex-1 min-w-0" style={{ wordBreak: 'break-word' }}>{match.team2?.name}</span>
-          </div>
+          {isVolleyball ? (
+            scoreMode === 'sets' ? (
+              <div className="space-y-1.5">
+                {sets.map(([s1, s2], i) => {
+                  const winner = s1 > s2 ? match.team1?.name : s2 > s1 ? match.team2?.name : null
+                  return (
+                    <div key={i} className="flex items-center justify-center gap-2">
+                      <span className="w-16 shrink-0 text-right text-xs text-muted whitespace-nowrap">{i + 1}-р ээлж</span>
+                      <input type="number" min={0}
+                        className="w-14 shrink-0 rounded border border-border bg-surface-2 px-1 py-1 text-center font-bold text-sm focus:border-primary focus:outline-none"
+                        value={s1} onChange={e => setSets(prev => prev.map((s, j) => j === i ? [+e.target.value, s[1]] : s) as [number, number][])} />
+                      <span className="shrink-0 font-bold text-muted">:</span>
+                      <input type="number" min={0}
+                        className="w-14 shrink-0 rounded border border-border bg-surface-2 px-1 py-1 text-center font-bold text-sm focus:border-primary focus:outline-none"
+                        value={s2} onChange={e => setSets(prev => prev.map((s, j) => j === i ? [s[0], +e.target.value] : s) as [number, number][])} />
+                      <span className="w-20 shrink-0 truncate text-xs text-muted">{winner ?? ''}</span>
+                    </div>
+                  )
+                })}
+                <div className="flex items-center justify-between pt-1.5 border-t border-border/50">
+                  <span className="text-xs text-muted">Харьцаа:</span>
+                  <span className="text-sm font-bold tabular-nums">{autoRatio[0]} : {autoRatio[1]}</span>
+                  <button onClick={() => setScoreMode('ratio')} className="text-xs text-muted hover:text-foreground transition-colors">
+                    Гараар →
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <div className="grid grid-cols-[1fr_4rem_1.25rem_4rem_1fr] items-center gap-2">
+                  <span className="text-xs text-muted text-right truncate">{match.team1?.name}</span>
+                  <input type="number" min={0} max={3} className="input text-center font-bold text-lg" value={t1}
+                    onChange={e => setT1(Math.max(0, Number(e.target.value)))} />
+                  <span className="text-muted font-bold text-center">:</span>
+                  <input type="number" min={0} max={3} className="input text-center font-bold text-lg" value={t2}
+                    onChange={e => setT2(Math.max(0, Number(e.target.value)))} />
+                  <span className="text-xs text-muted truncate">{match.team2?.name}</span>
+                </div>
+                <button onClick={() => setScoreMode('sets')} className="text-xs text-muted hover:text-foreground transition-colors">
+                  ← Ээлжээр
+                </button>
+              </div>
+            )
+          ) : (
+            <div className="grid grid-cols-[1fr_4rem_1.25rem_4rem_1fr] items-center gap-2">
+              <span className="text-xs text-muted text-right truncate">{match.team1?.name}</span>
+              <input type="number" min={0} className="input text-center font-bold text-lg" value={t1}
+                onChange={e => setT1(Math.max(0, Number(e.target.value)))} />
+              <span className="text-muted font-bold text-center">:</span>
+              <input type="number" min={0} className="input text-center font-bold text-lg" value={t2}
+                onChange={e => setT2(Math.max(0, Number(e.target.value)))} />
+              <span className="text-xs text-muted truncate">{match.team2?.name}</span>
+            </div>
+          )}
           <button onClick={save} disabled={saving}
             className="w-full rounded-lg bg-live px-4 py-2 text-sm font-bold text-black disabled:opacity-40 hover:bg-live/80">
             {saving ? '...' : '✓ Хадгалах'}

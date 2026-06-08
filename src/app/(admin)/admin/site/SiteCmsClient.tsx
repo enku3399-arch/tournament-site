@@ -2114,6 +2114,16 @@ function HistoryTab({ saveToApi }: { saveToApi: (key: string, value: unknown) =>
   )
 }
 
+const SECTION_KEYS: Partial<Record<Tab, keyof HomeSections>> = {
+  sponsors: 'sponsors',
+  stats:    'stats',
+  aimags:   'host_aimags',
+  about:    'about',
+  schedule: 'schedule',
+  news:     'news',
+  medals:   'medals',
+}
+
 /* ── MAIN CLIENT COMPONENT ────────────────────────────────────────────────── */
 export function SiteCmsClient({ initialSettings }: { initialSettings: SiteSettings }) {
   const [tab, setTab] = useState<Tab | ''>('general')
@@ -2171,20 +2181,45 @@ export function SiteCmsClient({ initialSettings }: { initialSettings: SiteSettin
       <div className="divide-y divide-border">
         {TABS.map(t => {
           const isOpen = tab === t.id
+          const sectionKey = SECTION_KEYS[t.id]
+          const isVisible = sectionKey !== undefined ? settings.home_sections[sectionKey] : undefined
+
           return (
             <div key={t.id}>
-              <button
-                onClick={() => setTab(isOpen ? '' : t.id)}
-                className={`flex w-full items-center gap-3 px-4 py-3.5 text-sm text-left transition-colors ${
-                  isOpen
-                    ? 'bg-primary/10 text-primary'
-                    : 'text-muted hover:text-foreground hover:bg-surface-2'
-                }`}
-              >
-                <span className="text-base">{t.icon}</span>
-                <span className="flex-1 font-semibold">{t.label}</span>
-                <span className="text-[10px] opacity-40">{isOpen ? '▲' : '▼'}</span>
-              </button>
+              <div className={`flex items-center transition-colors ${
+                isOpen ? 'bg-primary/10' : 'hover:bg-surface-2'
+              }`}>
+                {/* Accordion toggle */}
+                <button
+                  onClick={() => setTab(isOpen ? '' : t.id)}
+                  className={`flex flex-1 items-center gap-3 px-4 py-3.5 text-sm text-left ${
+                    isOpen ? 'text-primary' : 'text-muted hover:text-foreground'
+                  }`}
+                >
+                  <span className="text-base">{t.icon}</span>
+                  <span className="flex-1 font-semibold">{t.label}</span>
+                  <span className="text-[10px] opacity-40">{isOpen ? '▲' : '▼'}</span>
+                </button>
+
+                {/* Section visibility toggle */}
+                {sectionKey !== undefined && (
+                  <button
+                    onClick={async e => {
+                      e.stopPropagation()
+                      const next = { ...settings.home_sections, [sectionKey]: !isVisible }
+                      await save('home_sections', next)
+                    }}
+                    title={isVisible ? 'Нүүр хуудаснаас нуух' : 'Нүүр хуудсанд харуулах'}
+                    className={`mr-3 flex shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs font-semibold transition-colors ${
+                      isVisible
+                        ? 'bg-live/15 text-live border-live/30 hover:bg-live/25'
+                        : 'bg-surface text-muted border-border hover:border-primary/50 hover:text-primary'
+                    }`}
+                  >
+                    {isVisible ? '🟢 Нийтийн' : '⚪ Нуугдсан'}
+                  </button>
+                )}
+              </div>
               {isOpen && (
                 <div className="border-t border-border px-6 py-6">
                   {tabContent()}

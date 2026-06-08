@@ -14,25 +14,18 @@ function roundRobin(teamIds: string[]): [string, string][][] {
       if (a !== 'BYE' && b !== 'BYE') pairs.push([a, b])
     }
     rounds.push(pairs)
-    // Rotate keeping first fixed
     teams.splice(1, 0, teams.pop()!)
   }
   return rounds
 }
 
+const COURT2_GROUPS = ['D', 'E', 'F']
+
 export async function POST(req: Request, { params }: { params: Promise<{ sportId: string }> }) {
   const { sportId } = await params
-  const { tournamentId, judgeCode } = await req.json()
+  const { tournamentId, judgeCode, useTwoCourts = true } = await req.json()
   const supabase = createServiceClient()
 
-  // Get sport
-  const { data: sport } = await supabase
-    .from('tournament_sports')
-    .select('*')
-    .eq('id', sportId)
-    .single()
-
-  // Get groups with their teams
   const { data: groups } = await supabase
     .from('groups')
     .select('*')
@@ -46,43 +39,50 @@ export async function POST(req: Request, { params }: { params: Promise<{ sportId
     .select('*')
     .in('group_id', groups.map((g: any) => g.id))
 
-  // Delete existing group matches
-  await supabase
-    .from('matches')
-    .delete()
-    .eq('sport_id', sportId)
-    .eq('stage', 'group')
+  await supabase.from('matches').delete().eq('sport_id', sportId).eq('stage', 'group')
 
-  const matchRows: any[] = []
-  let matchNumber = 1
+  // Collect rounds per group
+  type GroupData = { group: any; court: number; rounds: [string, string][][] }
+  const groupData: GroupData[] = []
 
   for (const group of groups as any[]) {
     const teamIds = (groupTeams ?? [])
       .filter((gt: any) => gt.group_id === group.id)
       .map((gt: any) => gt.team_id)
-
     if (teamIds.length < 2) continue
+    const court = useTwoCourts && COURT2_GROUPS.includes(group.name?.toUpperCase()) ? 2 : 1
+    groupData.push({ group, court, rounds: roundRobin(teamIds) })
+  }
 
-    const rounds = roundRobin(teamIds)
-    rounds.forEach((pairs, roundIdx) => {
-      pairs.forEach(([t1, t2]) => {
+  if (!groupData.length) return NextResponse.json({ error: 'Тоглолт үүсгэх баг хангалтгүй байна' }, { status: 400 })
+
+  // Interleave by round: round 1 of all groups, then round 2, etc.
+  const maxRounds = Math.max(...groupData.map(g => g.rounds.length))
+  const matchRows: any[] = []
+  let matchNumber = 1
+  const courtOrderCounters: Record<number, number> = { 1: 1, 2: 1 }
+
+  for (let r = 0; r < maxRounds; r++) {
+    for (const { group, court, rounds } of groupData) {
+      if (r >= rounds.length) continue
+      for (const [t1, t2] of rounds[r]) {
         matchRows.push({
           tournament_id: tournamentId,
           sport_id: sportId,
           stage: 'group',
           group_id: group.id,
-          round: roundIdx + 1,
+          round: r + 1,
           match_number: matchNumber++,
           team1_id: t1,
           team2_id: t2,
           status: 'scheduled',
+          court,
+          schedule_order: courtOrderCounters[court]++,
           ...(judgeCode ? { judge_code: judgeCode } : {}),
         })
-      })
-    })
+      }
+    }
   }
-
-  if (!matchRows.length) return NextResponse.json({ error: 'Тоглолт үүсгэх баг хангалтгүй байна' }, { status: 400 })
 
   const { error } = await supabase.from('matches').insert(matchRows)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

@@ -5,6 +5,7 @@ import { SPORT_ICONS, sportDisplayName } from '@/lib/types'
 import { SportCard } from './SportCard'
 import { AddSportButton } from './SportSettingsPanel'
 import Link from 'next/link'
+import { getSiteSettings } from '@/lib/site-settings'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,11 +13,13 @@ export default async function AdminTournamentPage({ params }: { params: Promise<
   const { id } = await params
   const supabase = createClient()
 
-  const [{ data: tournament }, { data: sports }, { data: teams }] = await Promise.all([
+  const [{ data: tournament }, { data: sports }, { data: teams }, siteSettings] = await Promise.all([
     supabase.from('tournaments').select('*').eq('id', id).single(),
     supabase.from('tournament_sports').select('*').eq('tournament_id', id).order('created_at'),
     supabase.from('teams').select('*').eq('tournament_id', id).order('name'),
+    getSiteSettings(),
   ])
+  const scheduleSports = siteSettings.schedule_sports
 
   if (!tournament) notFound()
 
@@ -93,6 +96,7 @@ export default async function AdminTournamentPage({ params }: { params: Promise<
               tournamentId={id}
               sport={sport}
               teamCount={sportTeamCount}
+              scheduleVisible={scheduleSports.includes(sport.id)}
             />
           )
         })}

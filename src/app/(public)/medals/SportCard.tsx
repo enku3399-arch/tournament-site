@@ -57,7 +57,7 @@ export default function SportCard({ sr }: Props) {
       ) : shown.length > 0 ? (
         <div style={{ display: 'grid', gap: 6 }}>
           {shown.map(p => (
-            <div key={p.rank} style={{
+            <div key={p.name} style={{
               display: 'flex', alignItems: 'center', gap: 10,
               padding: '4px 0',
               borderBottom: p.rank === 3 && !expanded ? 'none' : undefined,

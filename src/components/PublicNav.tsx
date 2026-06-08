@@ -5,6 +5,7 @@ import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
 import type { SiteSettings } from '@/lib/site-settings'
+import { LiveTicker } from '@/components/LiveTicker'
 
 export function PublicNav({ settings }: { settings: SiteSettings }) {
   const pathname = usePathname()
@@ -19,14 +20,12 @@ export function PublicNav({ settings }: { settings: SiteSettings }) {
       {/* ── UTILITY BAR ─────────────────────────────────────────── */}
       <div className="utility">
         <div className="wrap-wide utility-row">
-          <div className="utility-left">
+          <div className="utility-left" style={{ flexShrink: 0 }}>
             <span className="live-dot">Шууд дамжуулалт</span>
             <span className="utility-sep" />
-            <span>{g.dateDisplay} · "Буянт Ухаа"</span>
           </div>
-          <div className="utility-right">
-            <Link href="/press">Хэвлэлийн өрөө</Link>
-            <span className="utility-sep" />
+          <LiveTicker />
+          <div className="utility-right" style={{ flexShrink: 0 }}>
             <Link href="/contact">Холбоо барих</Link>
             <span className="utility-sep" />
             <Link href="/en">EN</Link>

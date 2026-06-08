@@ -9,10 +9,26 @@ interface Props {
   tournamentId: string
   sport: TournamentSport
   teamCount: number
+  scheduleVisible?: boolean
 }
 
-export function SportCard({ tournamentId, sport, teamCount }: Props) {
+export function SportCard({ tournamentId, sport, teamCount, scheduleVisible = false }: Props) {
   const [open, setOpen] = useState(false)
+  const [visible, setVisible] = useState(scheduleVisible)
+  const [toggling, setToggling] = useState(false)
+
+  async function toggleSchedule(e: React.MouseEvent) {
+    e.stopPropagation()
+    if (toggling) return
+    setToggling(true)
+    try {
+      const res = await fetch(`/api/admin/sport/${sport.id}/toggle-schedule`, { method: 'POST' })
+      const json = await res.json()
+      if (json.ok) setVisible(json.visible)
+    } finally {
+      setToggling(false)
+    }
+  }
 
   return (
     <div className="rounded-xl border border-border bg-surface overflow-hidden">
@@ -34,7 +50,21 @@ export function SportCard({ tournamentId, sport, teamCount }: Props) {
           )}
           <span className="text-sm text-muted">({teamCount} баг)</span>
         </div>
-        <span className="text-muted text-xs shrink-0">{open ? '▲' : '▼'}</span>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={toggleSchedule}
+            disabled={toggling}
+            title={visible ? 'Хуваарийн хуудсаас нуух' : 'Хуваарийн хуудсанд нийтлэх'}
+            className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold border transition-colors ${
+              visible
+                ? 'bg-live/15 text-live border-live/30 hover:bg-live/25'
+                : 'bg-surface text-muted border-border hover:border-primary/50 hover:text-primary'
+            } ${toggling ? 'opacity-50' : ''}`}
+          >
+            {visible ? '🟢 Нийтлэгдсэн' : '⚪ Нуугдсан'}
+          </button>
+          <span className="text-muted text-xs">{open ? '▲' : '▼'}</span>
+        </div>
       </button>
 
       {open && (

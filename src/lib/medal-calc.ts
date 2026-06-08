@@ -2,15 +2,6 @@ import { createServiceClient } from './supabase-server'
 
 export const TOURNAMENT_ID = '0b05625d-2f6d-48de-b69c-d5a23c2f0e3f'
 
-// Stage depth for knockout ranking (higher = got further)
-const STAGE_DEPTH: Record<string, number> = {
-  group: 0,
-  knockout: 1,
-  quarterfinal: 2,
-  semifinal: 3,
-  third: 4,
-  final: 5,
-}
 
 // Two-letter aimag abbreviations
 export const AIMAG_ABBR: Record<string, string> = {
@@ -55,6 +46,7 @@ type DbMatch = {
   team2_id: string | null
   team1_score: number | null
   team2_score: number | null
+  winner_id: string | null
 }
 
 type DbTeam = {
@@ -73,7 +65,8 @@ export type SportPlacement = {
   sportId: string
   sportName: string
   sport_type: string
-  rank: number        // 1st, 2nd, 3rd...
+  rank: number        // 1st, 2nd, 3rd... (харуулах зориулалттай)
+  score: number       // base+offset оноо (нэгдсэн хүснэгтэд)
   teamName: string
 }
 
@@ -90,9 +83,49 @@ export type AimagStanding = {
 }
 
 function winnerLoser(m: DbMatch): { winner: string; loser: string } | null {
-  if (!m.team1_id || !m.team2_id || m.team1_score === null || m.team2_score === null) return null
-  const w1 = m.team1_score >= m.team2_score
+  if (!m.team1_id || !m.team2_id) return null
+  if (m.winner_id) return {
+    winner: m.winner_id,
+    loser: m.winner_id === m.team1_id ? m.team2_id : m.team1_id,
+  }
+  if (m.team1_score === null || m.team2_score === null || m.team1_score === m.team2_score) return null
+  const w1 = m.team1_score > m.team2_score
   return { winner: w1 ? m.team1_id : m.team2_id, loser: w1 ? m.team2_id : m.team1_id }
+}
+
+// Спортын суурь оноо (base)
+function getSportBase(name: string, sportType: string): number {
+  const n = name.toLowerCase(), t = sportType.toLowerCase()
+  if (n.includes('сагс') || n.includes('волейбол') || t === 'basketball' || t === 'volleyball') return 1
+  if (n.includes('теннис') || n.includes('дартс') || t === 'table_tennis' || t === 'tennis' || t === 'darts') return 3
+  if (n.includes('шатар') || t === 'chess') return 5
+  return 1
+}
+
+// Нэг багийн оноо: base + offset (1-р байр=0, 2-р=1, 3-р=2, 4-р=3, ТФ=4, 1р шат=5, хэсэг=6)
+function calcTeamScore(teamId: string, base: number, sportMatches: DbMatch[]): number {
+  const comp = sportMatches.filter(m => m.status === 'completed')
+
+  const fin = comp.find(m => m.stage === 'knockout' && m.round === 1
+    && (m.team1_id === teamId || m.team2_id === teamId))
+  if (fin) return fin.winner_id === teamId ? base : base + 1
+
+  const third = comp.find(m => m.stage === 'third'
+    && (m.team1_id === teamId || m.team2_id === teamId))
+  if (third) return third.winner_id === teamId ? base + 2 : base + 3
+
+  const koLoss = comp
+    .filter(m => m.stage === 'knockout'
+      && m.winner_id !== teamId
+      && (m.team1_id === teamId || m.team2_id === teamId))
+    .sort((a, b) => (a.round ?? 999) - (b.round ?? 999))[0]
+  if (koLoss) {
+    const r = koLoss.round ?? 999
+    if (r === 2) return base + 3   // SF алдсан, 3-р байрны тоглолтгүй
+    return base + 1 + r            // QF→base+4, 1р шат→base+5
+  }
+
+  return base + 6  // зөвхөн хэсэг
 }
 
 function getSportPlacements(
@@ -104,23 +137,23 @@ function getSportPlacements(
   const n = teamIds.length
 
   const completed = sportMatches.filter(m => m.status === 'completed')
-  if (completed.length === 0) return placements   // тоглолт болоогүй → хоосон буцаана
+  if (completed.length === 0) return placements
 
-  // 1st and 2nd: final match
-  const finalMatch = completed.find(m => m.stage === 'final')
+  // 1st/2nd: knockout round=1 (Final)
+  const finalMatch = completed.find(m => m.stage === 'knockout' && m.round === 1)
   if (finalMatch) {
     const r = winnerLoser(finalMatch)
     if (r) { placements.set(r.winner, 1); placements.set(r.loser, 2) }
   }
 
-  // 3rd and 4th: explicit third-place match
+  // 3rd/4th: stage='third' тоглолт
   const thirdMatch = completed.find(m => m.stage === 'third')
   if (thirdMatch) {
     const r = winnerLoser(thirdMatch)
     if (r) { placements.set(r.winner, 3); placements.set(r.loser, 4) }
   } else if (finalMatch) {
-    // Semifinal losers share 3rd
-    const semis = completed.filter(m => m.stage === 'semifinal')
+    // SF алдсан баг → 3-р байр (round=2)
+    const semis = completed.filter(m => m.stage === 'knockout' && m.round === 2)
     let rank = 3
     for (const s of semis) {
       const r = winnerLoser(s)
@@ -128,14 +161,13 @@ function getSportPlacements(
     }
   }
 
-  // Track elimination depth for remaining teams
-  const depth = new Map<string, number>()
+  // Нугалааны үлдсэн багуудын хамгийн дотор орсон раунд (тоо бага = дотор = дээр)
+  const bestRound = new Map<string, number>()
   const groupWins = new Map<string, number>()
   const groupDiff = new Map<string, number>()
 
   for (const m of completed) {
     if (m.stage === 'group') {
-      // Group wins / point diff
       const r = winnerLoser(m)
       if (r) {
         groupWins.set(r.winner, (groupWins.get(r.winner) ?? 0) + 1)
@@ -143,22 +175,22 @@ function getSportPlacements(
         groupDiff.set(r.winner, (groupDiff.get(r.winner) ?? 0) + d)
         groupDiff.set(r.loser, (groupDiff.get(r.loser) ?? 0) - d)
       }
-    } else {
-      // Knockout elimination — track depth of the loser
+    } else if (m.stage === 'knockout') {
+      // Алдсан баг → хамгийн бага round (дотор орсон) хадгалах
       const r = winnerLoser(m)
       if (r && !placements.has(r.loser)) {
-        const d = STAGE_DEPTH[m.stage ?? ''] ?? 1
-        if ((depth.get(r.loser) ?? -1) < d) depth.set(r.loser, d)
+        const cur = bestRound.get(r.loser) ?? Infinity
+        if ((m.round ?? Infinity) < cur) bestRound.set(r.loser, m.round ?? Infinity)
       }
     }
   }
 
-  // Sort remaining by depth eliminated (deeper = better), then group performance
+  // Үлдсэн эрэмбэ: хамгийн бага round (дотор) → хэсгийн ялалт → гол зөрүү
   const remaining = teamIds
     .filter(id => !placements.has(id))
     .sort((a, b) => {
-      const da = depth.get(a) ?? 0, db = depth.get(b) ?? 0
-      if (da !== db) return db - da
+      const ra = bestRound.get(a) ?? Infinity, rb = bestRound.get(b) ?? Infinity
+      if (ra !== rb) return ra - rb    // бага round = дотор орсон = дээр
       const wa = groupWins.get(a) ?? 0, wb = groupWins.get(b) ?? 0
       if (wa !== wb) return wb - wa
       return (groupDiff.get(b) ?? 0) - (groupDiff.get(a) ?? 0)
@@ -169,7 +201,6 @@ function getSportPlacements(
     if (!placements.has(id)) placements.set(id, nextRank++)
   }
 
-  // Fallback: any team not yet seen
   for (const id of teamIds) {
     if (!placements.has(id)) placements.set(id, n)
   }
@@ -188,7 +219,7 @@ export async function calculateMedalStandings(): Promise<{
     supabase.from('tournament_sports').select('id, name, sport_type').eq('tournament_id', TOURNAMENT_ID),
     supabase.from('teams').select('id, name, sport_id').eq('tournament_id', TOURNAMENT_ID),
     supabase.from('matches')
-      .select('id, sport_id, status, stage, round, team1_id, team2_id, team1_score, team2_score')
+      .select('id, sport_id, status, stage, round, team1_id, team2_id, team1_score, team2_score, winner_id')
       .eq('tournament_id', TOURNAMENT_ID),
   ])
 
@@ -213,6 +244,7 @@ export async function calculateMedalStandings(): Promise<{
     if (n === 0) continue
 
     const placements = getSportPlacements(sportMatches, sportTeams)
+    const base = getSportBase(sport.name, sport.sport_type)
 
     // Build podium for sport results section
     const podium: { rank: number; name: string }[] = []
@@ -223,11 +255,13 @@ export async function calculateMedalStandings(): Promise<{
       const s = stats.get(aimag)
       if (!s) continue
 
-      s.pts += rank
+      // base+offset оноолтын систем ашиглана (raw rank биш)
+      const score = calcTeamScore(team.id, base, sportMatches)
+      s.pts += score
       if (rank === 1) s.gold++
       if (rank === 2) s.silver++
       if (rank === 3) s.bronze++
-      s.placements.push({ sportId: sport.id, sportName: sport.name, sport_type: sport.sport_type, rank, teamName: team.name })
+      s.placements.push({ sportId: sport.id, sportName: sport.name, sport_type: sport.sport_type, rank, score, teamName: team.name })
 
       podium.push({ rank, name: aimag })
     }

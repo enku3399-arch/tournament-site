@@ -195,6 +195,7 @@ export interface SiteSettings {
   scoring_links: ScoringLink[]
   tournament_history: TournamentEditionHistory[]
   host_schedule: HostScheduleRow[]
+  schedule_sports: string[]   // sport ID-ууд — нийтийн хуваарь хуудсанд харуулах
 }
 
 export const DEFAULT_SETTINGS: SiteSettings = {
@@ -228,7 +229,8 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   nav_links: [
     { href: '/', label: 'Нүүр' },
     { href: '/news', label: 'Мэдээ' },
-    { href: '/sports', label: 'Спортын төрөл' },
+    { href: '/medals', label: 'Медалийн хүснэгт' },
+    { href: '/matches', label: 'Тоглолтын хуваарь' },
     { href: '/groups', label: 'Хэсэг' },
     { href: '/schedule', label: 'Хөтөлбөр' },
     { href: '/results', label: 'Үр дүн' },
@@ -433,7 +435,6 @@ export const DEFAULT_SETTINGS: SiteSettings = {
       title: 'Наадам',
       links: [
         { href: '/schedule', label: 'Хөтөлбөр' },
-        { href: '/sports',   label: 'Спортын төрөл' },
         { href: '/results',  label: 'Үр дүн' },
         { href: '/medals',   label: 'Медалийн хүснэгт' },
         { href: '/teams',    label: 'Багууд' },
@@ -449,6 +450,7 @@ export const DEFAULT_SETTINGS: SiteSettings = {
       ],
     },
   } as FooterNav,
+  schedule_sports: [],
   home_sections: {
     stats: true,
     news: true,
@@ -524,5 +526,6 @@ export async function getSiteSettings(): Promise<SiteSettings & { _tableExists: 
   if (!Array.isArray(result.scoring_links)) result.scoring_links = DEFAULT_SETTINGS.scoring_links
   if (!Array.isArray(result.tournament_history)) result.tournament_history = DEFAULT_SETTINGS.tournament_history
   if (!Array.isArray(result.host_schedule)) result.host_schedule = DEFAULT_SETTINGS.host_schedule
+  if (!Array.isArray(result.schedule_sports)) result.schedule_sports = DEFAULT_SETTINGS.schedule_sports
   return { ...result, _tableExists: tableExists }
 }

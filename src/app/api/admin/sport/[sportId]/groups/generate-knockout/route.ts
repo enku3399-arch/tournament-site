@@ -53,8 +53,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ sportId
     .eq('sport_id', sportId)
     .eq('stage', 'group')
 
-  // Delete existing knockout matches
+  // Одоогийн knockout + third тоглолтуудыг бүгдийг устгах
   await supabase.from('matches').delete().eq('sport_id', sportId).eq('stage', 'knockout')
+  await supabase.from('matches').delete().eq('sport_id', sportId).eq('stage', 'third')
 
   const advanceCount = (sport as any).advance_per_group ?? 2
 
@@ -77,38 +78,43 @@ export async function POST(req: Request, { params }: { params: Promise<{ sportId
   const totalTeams = groups.length * advanceCount
   const totalRounds = Math.ceil(Math.log2(totalTeams))
 
-  // Build QF pairings (FIFA-style cross: 1A vs 2B, 1B vs 2A, 1C vs 2D, 1D vs 2C)
-  // For generic case: pair group i winner vs group (i+1)%groups runner-up
-  const qfPairs: [string | null, string | null][] = []
   const n = groups.length
-  for (let i = 0; i < n; i++) {
-    const winner = advancers[i]?.[0] ?? null
-    const runnerUp = advancers[(i + 1) % n]?.[1] ?? null
-    qfPairs.push([winner, runnerUp])
-  }
-
+  const COURT2_GROUPS = ['D', 'E', 'F']
   const matchRows: any[] = []
 
-  // Round numbering: Final=1, SF=2, QF=3, R16=4 (matches label convention)
-  // QF is the first played round → round = totalRounds
+  // Round numbering: Final=1, SF=2, QF=3 (first played round = totalRounds)
   const firstRound = totalRounds
-  qfPairs.forEach(([t1, t2], i) => {
+  const courtCounters: Record<number, number> = { 1: 1, 2: 1 }
+
+  // Mirror pairing: group[i] 1st vs group[n-1-i] 2nd
+  // Court determined by which group the 1st-place team came from
+  for (let i = 0; i < n; i++) {
+    const winner = advancers[i]?.[0] ?? null
+    const mirrorIdx = n - 1 - i
+    const runnerUp = advancers[mirrorIdx]?.[1] ?? null
+    const court = COURT2_GROUPS.includes((groups as any[])[i].name?.toUpperCase()) ? 2 : 1
     matchRows.push({
       tournament_id: tournamentId,
       sport_id: sportId,
       stage: 'knockout',
       round: firstRound,
       match_number: i + 1,
-      team1_id: t1,
-      team2_id: t2,
-      status: t1 && t2 ? 'scheduled' : 'pending',
+      team1_id: winner,
+      team2_id: runnerUp,
+      status: winner && runnerUp ? 'scheduled' : 'pending',
+      court,
+      schedule_order: courtCounters[court]++,
     })
-  })
+  }
 
-  // SF, Final: round decrements toward 1 (Final)
-  let prevRoundCount = qfPairs.length
+  // SF, Final (медалийн тоглолтууд) → бүгд 1-р талбай
+  // n=6 (12-баг): 2 баг SF-д шууд орно (bye) → QF 2 тоглолт, SF 2 тоглолт
+  const innerRoundSizes: Record<number, number> | null = n === 6
+    ? { [firstRound - 1]: 2, [firstRound - 2]: 2, 1: 1 }
+    : null
+  let prevRoundCount = n
   for (let r = firstRound - 1; r >= 1; r--) {
-    const matchesInRound = Math.ceil(prevRoundCount / 2)
+    const matchesInRound = innerRoundSizes ? (innerRoundSizes[r] ?? Math.ceil(prevRoundCount / 2)) : Math.ceil(prevRoundCount / 2)
     for (let m = 1; m <= matchesInRound; m++) {
       matchRows.push({
         tournament_id: tournamentId,
@@ -119,10 +125,26 @@ export async function POST(req: Request, { params }: { params: Promise<{ sportId
         team1_id: null,
         team2_id: null,
         status: 'pending',
+        court: 1,
+        schedule_order: courtCounters[1]++,
       })
     }
     prevRoundCount = matchesInRound
   }
+
+  // 3-р байрны тоглолт (SF хожсон 2 баг автоматаар орно)
+  matchRows.push({
+    tournament_id: tournamentId,
+    sport_id: sportId,
+    stage: 'third',
+    round: 2,
+    match_number: 1,
+    team1_id: null,
+    team2_id: null,
+    status: 'pending',
+    court: 1,
+    schedule_order: courtCounters[1]++,
+  })
 
   const { error } = await supabase.from('matches').insert(matchRows)
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })

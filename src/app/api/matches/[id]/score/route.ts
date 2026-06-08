@@ -5,7 +5,7 @@ export async function POST(req: NextRequest, ctx: RouteContext<'/api/matches/[id
   const { id } = await ctx.params
   try {
     const body = await req.json()
-    const { team1_score, team2_score, status, finalize, reset, judge_code } = body
+    const { team1_score, team2_score, set_scores, status, finalize, reset, judge_code } = body
 
     const supabase = await createServiceClient()
 
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest, ctx: RouteContext<'/api/matches/[id
     if (reset) {
       const { data, error } = await supabase
         .from('matches')
-        .update({ status: 'scheduled', team1_score: null, team2_score: null, winner_id: null })
+        .update({ status: 'scheduled', team1_score: null, team2_score: null, winner_id: null, set_scores: null })
         .eq('id', id)
         .select(`*, team1:team1_id(*), team2:team2_id(*), winner:winner_id(*), sport:sport_id(*)`)
         .single()
@@ -43,8 +43,15 @@ export async function POST(req: NextRequest, ctx: RouteContext<'/api/matches/[id
     if (status) updates.status = status
 
     if (finalize) {
-      const s1 = team1_score ?? match.team1_score ?? 0
-      const s2 = team2_score ?? match.team2_score ?? 0
+      // Volleyball: compute ratio from set scores
+      let s1 = team1_score ?? match.team1_score ?? 0
+      let s2 = team2_score ?? match.team2_score ?? 0
+      if (set_scores && Array.isArray(set_scores)) {
+        const sets = set_scores as [number, number][]
+        s1 = sets.filter(([a, b]) => a > b).length
+        s2 = sets.filter(([a, b]) => b > a).length
+        updates.set_scores = sets
+      }
       updates.status = 'completed'
       updates.team1_score = s1
       updates.team2_score = s2
@@ -57,12 +64,17 @@ export async function POST(req: NextRequest, ctx: RouteContext<'/api/matches/[id
         const r = match.round as number
         const mn = match.match_number as number
 
-        // Custom 12-team bracket (6 groups × 2): special advancement map
-        // R4M1(A1vF2)→R2M1 t1, R4M2(B1vC2)→R3M1 t1, R4M3(C1vD2)→R3M1 t2
-        // R4M4(D1vE2)→R3M2 t1, R4M5(E1vB2)→R3M2 t2, R4M6(F1vA2)→R2M2 t2
-        // R3M1(QF1)→R2M1 t2, R3M2(QF2)→R2M2 t1
-        // R2M1(SF1)→R1M1 t1, R2M2(SF2)→R1M1 t2
+        // 12-багийн bracket (6 хэсэг × 2) эсэхийг round=4 тоглолт байгаагаар илрүүлнэ
         type Adv = { round: number; match: number; slot: 1 | 2 }
+        const { count: r4Count } = await supabase
+          .from('matches')
+          .select('*', { count: 'exact', head: true })
+          .eq('sport_id', match.sport_id)
+          .eq('stage', 'knockout')
+          .eq('round', 4)
+        const isTwelveTm = (r4Count ?? 0) > 0
+
+        // CUSTOM_MAP: зөвхөн 12-багийн bracket-д хэрэглэнэ
         const CUSTOM_MAP: Record<string, Adv> = {
           '4-1': { round: 2, match: 1, slot: 1 },
           '4-2': { round: 3, match: 1, slot: 1 },
@@ -76,14 +88,15 @@ export async function POST(req: NextRequest, ctx: RouteContext<'/api/matches/[id
           '2-2': { round: 1, match: 1, slot: 2 },
         }
         const customKey = `${r}-${mn}`
-        const adv = CUSTOM_MAP[customKey]
+        const adv = isTwelveTm ? CUSTOM_MAP[customKey] : null
 
         if (adv) {
-          // Custom 12-team bracket
+          // 12-багийн bracket — CUSTOM_MAP дагуу дэвшүүлэх
           const { data: nextMatch } = await supabase
             .from('matches').select('id')
             .eq('tournament_id', match.tournament_id)
             .eq('sport_id', match.sport_id)
+            .eq('stage', 'knockout')
             .eq('round', adv.round)
             .eq('match_number', adv.match)
             .maybeSingle()
@@ -92,16 +105,16 @@ export async function POST(req: NextRequest, ctx: RouteContext<'/api/matches/[id
               adv.slot === 1 ? { team1_id: updates.winner_id } : { team2_id: updates.winner_id }
             ).eq('id', nextMatch.id)
           }
-
-          // 3rd place: SF losers
+          // SF алдсан → 3-р байрны тоглолт
           if (r === 2) {
             const loser = updates.winner_id === match.team1_id ? match.team2_id : match.team1_id
-            const { data: thirdMatch } = await supabase
+            const { data: thirdMatches } = await supabase
               .from('matches').select('id')
               .eq('tournament_id', match.tournament_id)
               .eq('sport_id', match.sport_id)
               .eq('stage', 'third')
-              .maybeSingle()
+              .limit(1)
+            const thirdMatch = thirdMatches?.[0]
             if (thirdMatch && loser) {
               await supabase.from('matches').update(
                 mn === 1 ? { team1_id: loser } : { team2_id: loser }
@@ -109,7 +122,7 @@ export async function POST(req: NextRequest, ctx: RouteContext<'/api/matches/[id
             }
           }
         } else if (r > 1) {
-          // Generic advancement for other bracket sizes
+          // Ерөнхий дэвшүүлэлт (8-баг болон бусад хэмжээний bracket)
           const nextRound = r - 1
           const nextMatchNum = Math.ceil(mn / 2)
           const isFirstSlot = mn % 2 !== 0
@@ -117,6 +130,7 @@ export async function POST(req: NextRequest, ctx: RouteContext<'/api/matches/[id
             .from('matches').select('id')
             .eq('tournament_id', match.tournament_id)
             .eq('sport_id', match.sport_id)
+            .eq('stage', 'knockout')
             .eq('round', nextRound)
             .eq('match_number', nextMatchNum)
             .maybeSingle()
@@ -124,6 +138,22 @@ export async function POST(req: NextRequest, ctx: RouteContext<'/api/matches/[id
             await supabase.from('matches').update(
               isFirstSlot ? { team1_id: updates.winner_id } : { team2_id: updates.winner_id }
             ).eq('id', nextMatch.id)
+          }
+          // SF алдсан → 3-р байрны тоглолт (ерөнхий bracket-д)
+          if (r === 2) {
+            const loser = updates.winner_id === match.team1_id ? match.team2_id : match.team1_id
+            const { data: thirdMatches } = await supabase
+              .from('matches').select('id')
+              .eq('tournament_id', match.tournament_id)
+              .eq('sport_id', match.sport_id)
+              .eq('stage', 'third')
+              .limit(1)
+            const thirdMatch = thirdMatches?.[0]
+            if (thirdMatch && loser) {
+              await supabase.from('matches').update(
+                mn === 1 ? { team1_id: loser } : { team2_id: loser }
+              ).eq('id', thirdMatch.id)
+            }
           }
         }
       }

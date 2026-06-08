@@ -117,9 +117,8 @@ export default function NewsClient({ articles, tags }: { articles: NewsArticle[]
           </h2>
           <div style={{ display: 'grid', gap: 16 }}>
             {rest.slice(4).map(n => (
-              <Link key={n.id} href={`/news/${n.id}`} className="news-card"
-                style={{ display: 'grid', gridTemplateColumns: '180px 1fr', overflow: 'hidden', textDecoration: 'none' }}>
-                <div className="news-image" style={{ aspectRatio: '16/9', ...(n.imagePath ? { backgroundImage: `url(${n.imagePath})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}) }}>
+              <Link key={n.id} href={`/news/${n.id}`} className="news-card news-card-hlist" style={{ textDecoration: 'none' }}>
+                <div className="news-image" style={n.imagePath ? { backgroundImage: `url(${n.imagePath})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
                   <span className={`news-tag${n.tagColor === 'red' ? ' red' : ''}`}>{n.tag}</span>
                 </div>
                 <div className="news-body" style={{ padding: '16px 24px' }}>
