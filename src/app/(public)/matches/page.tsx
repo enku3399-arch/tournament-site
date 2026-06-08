@@ -340,18 +340,6 @@ function CourtTable({
 
           {roundEntries.map(([round, rMatches]) => (
             <div key={round}>
-              <div style={{
-                padding: '5px 16px',
-                borderTop: '1px solid rgba(11,20,38,.06)',
-                display: 'flex', alignItems: 'center', gap: 6,
-              }}>
-                <span style={{
-                  fontSize: 10, fontWeight: 700, color: 'var(--fog)',
-                  fontFamily: 'var(--display)', letterSpacing: '.06em',
-                }}>
-                  {round === -1 ? '3-Р БАЙРЫН ТОГЛОЛТ' : (ROUND_LABELS[round] ?? `ЭЭЛЖ ${round}`)}
-                </span>
-              </div>
               {rMatches.map((m) => {
                 const t1   = m.team1_id ? teamMap.get(m.team1_id) : null
                 const t2   = m.team2_id ? teamMap.get(m.team2_id) : null
