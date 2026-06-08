@@ -1,7 +1,5 @@
-import Link from 'next/link'
 import { createServiceClient } from '@/lib/supabase-server'
 import { getSiteSettings } from '@/lib/site-settings'
-import { AIMAG_LOGO } from '@/lib/aimag-logo'
 import RealtimeRefresher from '@/components/RealtimeRefresher'
 
 export const dynamic = 'force-dynamic'
@@ -140,18 +138,6 @@ export default async function MatchesPage() {
                     </p>
                   </div>
                 </div>
-                {koMatches.length > 0 && (
-                  <Link
-                    href={`/t/${TOURNAMENT_ID}/${sport.id}`}
-                    style={{
-                      fontSize: 12, fontFamily: 'var(--display)', letterSpacing: '.06em',
-                      color: color, border: `1px solid ${color}40`, borderRadius: 8,
-                      padding: '5px 12px', textDecoration: 'none', whiteSpace: 'nowrap',
-                    }}
-                  >
-                    Нугалааны бүдүүвч →
-                  </Link>
-                )}
               </div>
 
               {/* Courts + knockouts inline */}
@@ -167,7 +153,6 @@ export default async function MatchesPage() {
                   teamMap={teamMap}
                   groupMap={groupMap}
                   color={color}
-                  bracketHref={!hasTwoCourts && koMatches.length > 0 ? `/t/${TOURNAMENT_ID}/${sport.id}` : undefined}
                 />
                 {hasTwoCourts && (
                   <CourtTable
@@ -177,7 +162,6 @@ export default async function MatchesPage() {
                     teamMap={teamMap}
                     groupMap={groupMap}
                     color={color}
-                    bracketHref={ko2.length > 0 ? `/t/${TOURNAMENT_ID}/${sport.id}` : undefined}
                   />
                 )}
               </div>
@@ -207,7 +191,7 @@ function slotLabel(source: string | null): string {
 }
 
 function CourtTable({
-  matches, knockouts, label, teamMap, groupMap, color, bracketHref,
+  matches, knockouts, label, teamMap, groupMap, color,
 }: {
   matches: DbMatch[]
   knockouts: DbMatch[]
@@ -215,7 +199,6 @@ function CourtTable({
   teamMap: Map<string, DbTeam>
   groupMap: Map<string, DbGroup>
   color: string
-  bracketHref?: string
 }) {
   if (matches.length === 0 && knockouts.length === 0) return null
 
@@ -304,10 +287,6 @@ function CourtTable({
                 }}>
                   {t1?.name ?? '—'}
                 </span>
-                {t1 && AIMAG_LOGO[t1.name] && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={AIMAG_LOGO[t1.name]} alt="" style={{ width: 16, height: 16, borderRadius: 3, objectFit: 'cover', flexShrink: 0 }} />
-                )}
               </div>
               <div style={{ textAlign: 'center', flexShrink: 0 }}>
                 {done ? (
@@ -322,10 +301,6 @@ function CourtTable({
                 )}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 5, minWidth: 0 }}>
-                {t2 && AIMAG_LOGO[t2.name] && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={AIMAG_LOGO[t2.name]} alt="" style={{ width: 16, height: 16, borderRadius: 3, objectFit: 'cover', flexShrink: 0 }} />
-                )}
                 <span style={{
                   fontSize: 12, fontWeight: win2 ? 700 : 400,
                   color: win2 ? 'var(--paper)' : done ? 'rgba(11,20,38,.4)' : 'var(--ink)',
@@ -360,11 +335,6 @@ function CourtTable({
                 {knockouts.filter(m => m.status === 'completed').length}/{knockouts.length}
               </span>
             </div>
-            {bracketHref && (
-              <Link href={bracketHref} style={{ fontSize: 11, color: color, textDecoration: 'none', opacity: 0.8 }}>
-                Бүдүүвч →
-              </Link>
-            )}
           </div>
 
           {roundEntries.map(([round, rMatches]) => (
@@ -408,10 +378,6 @@ function CourtTable({
                       }}>
                         {name1}
                       </span>
-                      {t1 && AIMAG_LOGO[t1.name] && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={AIMAG_LOGO[t1.name]} alt="" style={{ width: 16, height: 16, borderRadius: 3, objectFit: 'cover', flexShrink: 0 }} />
-                      )}
                     </div>
                     <div style={{ textAlign: 'center' }}>
                       {done ? (
@@ -426,10 +392,6 @@ function CourtTable({
                       )}
                     </div>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 5, minWidth: 0 }}>
-                      {t2 && AIMAG_LOGO[t2.name] && (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={AIMAG_LOGO[t2.name]} alt="" style={{ width: 16, height: 16, borderRadius: 3, objectFit: 'cover', flexShrink: 0 }} />
-                      )}
                       <span style={{
                         fontSize: 12, fontWeight: win2 ? 700 : 400,
                         color: win2 ? 'var(--paper)' : done ? 'rgba(11,20,38,.4)' : (!t2 ? 'var(--fog)' : 'var(--ink)'),
