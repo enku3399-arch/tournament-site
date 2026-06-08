@@ -1,3 +1,4 @@
+import Link from 'next/link'
 import { createServiceClient } from '@/lib/supabase-server'
 import { getSiteSettings } from '@/lib/site-settings'
 import RealtimeRefresher from '@/components/RealtimeRefresher'
