@@ -142,11 +142,7 @@ export default async function MatchesPage() {
               </div>
 
               {/* Courts + knockouts inline */}
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: hasTwoCourts ? '1fr 1fr' : '1fr',
-                gap: 16,
-              }}>
+              <div className={hasTwoCourts ? 'grid grid-cols-1 md:grid-cols-2 gap-4' : 'grid grid-cols-1 gap-4'}>
                 <CourtTable
                   matches={hasTwoCourts ? court1 : sportMs}
                   knockouts={ko1}
