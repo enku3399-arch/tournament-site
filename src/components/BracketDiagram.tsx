@@ -144,8 +144,30 @@ type Props = {
 export default function BracketDiagram({ matches, getMatchHref }: Props) {
   const byKey = new Map<string, BMatch>()
   const thirdMatch = matches.find(m => m.stage === 'third')
-  for (const m of matches) {
-    if (m.stage === 'knockout') byKey.set(`${m.round}-${m.match_number}`, m)
+
+  // Normalize round numbers and match_numbers to handle any generator convention
+  const knockoutMatches = matches.filter(m => m.stage === 'knockout')
+  if (knockoutMatches.length > 0) {
+    // Count matches per round to identify first round (most matches)
+    const roundCounts = new Map<number, number>()
+    for (const m of knockoutMatches) roundCounts.set(m.round, (roundCounts.get(m.round) ?? 0) + 1)
+
+    // Sort rounds: most matches → round 4, fewest → round 1
+    const sortedRounds = [...roundCounts.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0] - b[0])
+    const roundMap = new Map(sortedRounds.map(([actual], idx) => [actual, 4 - idx]))
+
+    // Group by normalized round, re-index match_numbers from 1
+    const byNormRound = new Map<number, BMatch[]>()
+    for (const m of knockoutMatches) {
+      const nr = roundMap.get(m.round) ?? m.round
+      if (!byNormRound.has(nr)) byNormRound.set(nr, [])
+      byNormRound.get(nr)!.push(m)
+    }
+    for (const [nr, rMatches] of byNormRound) {
+      rMatches.sort((a, b) => a.match_number - b.match_number)
+      rMatches.forEach((m, i) => byKey.set(`${nr}-${i + 1}`, m))
+    }
   }
 
   const rounds = [4, 3, 2, 1]
