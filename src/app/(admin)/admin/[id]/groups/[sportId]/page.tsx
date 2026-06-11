@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import AdminBracket from '@/components/AdminBracket'
+import AdminBracketDiagram from '@/components/AdminBracketDiagram'
 
 type Team = { id: string; name: string; seed: number | null }
 type Group = { id: string; name: string; advance_count: number }
@@ -307,6 +307,21 @@ export default function GroupConfigPage() {
       if (data.ok) { await load(); setActiveTab('matches'); setOrderDirty(false) }
       else { setMsg('❌ ' + (data.error ?? 'Алдаа')); setGenerating(false) }
     } catch (e: any) { setMsg('❌ ' + e.message); setGenerating(false) }
+  }
+
+  async function fillBracket() {
+    setGenerating(true); setMsg('')
+    try {
+      const res = await fetch(`/api/admin/sport/${sportId}/groups/fill-bracket`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ tournamentId: id, judgeCode: judgeCode.trim() || undefined }),
+      })
+      const data = await res.json()
+      setMsg(data.ok ? `✅ ${data.count > 0 ? `${data.count} тоглолт нэмэгдлээ` : data.message}` : '❌ ' + (data.error ?? 'Алдаа'))
+      if (data.ok && data.count > 0) await load()
+    } catch (e: any) { setMsg('❌ ' + e.message) }
+    setGenerating(false)
   }
 
   async function generateDirectKnockout() {
@@ -938,6 +953,19 @@ export default function GroupConfigPage() {
             </div>
           ) : (
             <>
+              {/* Warning: only one round exists (missing QF/SF/Final) */}
+              {new Set(knockoutMatches.map(m => m.round)).size === 1 && knockoutMatches.length >= 4 && (
+                <div className="flex items-center gap-3 rounded-lg border border-yellow-500/40 bg-yellow-500/10 px-4 py-3">
+                  <span className="text-yellow-400 text-sm">⚠️ Зөвхөн эхний шат байна — ¼ ФИНАЛ, ХАГАС ФИНАЛ, ФИНАЛ шат дутуу байна</span>
+                  <button
+                    onClick={fillBracket}
+                    disabled={generating}
+                    className="ml-auto shrink-0 rounded-lg bg-yellow-500 px-4 py-1.5 text-xs font-bold text-black hover:bg-yellow-400 disabled:opacity-50 transition-colors"
+                  >
+                    {generating ? '...' : '+ Дутуу шат нэмэх'}
+                  </button>
+                </div>
+              )}
               <div className="flex items-center justify-between flex-wrap gap-2">
                 <p className="text-xs text-muted">
                   Хоосон нүдэнд доош унах цэснээс баг сонгоно уу. Оноо → <b>✏️ оноо</b> товч.
@@ -948,8 +976,8 @@ export default function GroupConfigPage() {
                 </Link>
               </div>
               <div className="overflow-x-auto -mx-3 sm:mx-0 px-3 sm:px-0">
-                <AdminBracket
-                  initialMatches={knockoutMatches as any}
+                <AdminBracketDiagram
+                  initialMatches={[...knockoutMatches, ...matches.filter(m => m.stage === 'third')] as any}
                   allTeams={teams.map(t => ({ id: t.id, name: t.name }))}
                   judgeCode={judgeCode}
                 />

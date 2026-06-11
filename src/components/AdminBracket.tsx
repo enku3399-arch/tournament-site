@@ -109,7 +109,7 @@ export default function AdminBracket({ initialMatches, allTeams, judgeCode }: Pr
         {rounds.map((round, ri) => {
           const roundMatches = [...matches.filter(m => m.round === round)]
             .sort((a, b) => a.match_number - b.match_number)
-          const slotH = slotH1 * Math.pow(2, ri)
+          const slotH = roundMatches.length > 0 ? totalH / roundMatches.length : totalH
           const isLast = round === totalRounds
           const label = roundLabel(round, totalRounds)
 
