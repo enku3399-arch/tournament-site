@@ -30,7 +30,7 @@ export default function GalleryAlbumClient({
   async function uploadToCloudinary(file: File): Promise<string> {
     const fd = new FormData()
     fd.append('file', file)
-    fd.append('upload_preset', UPLOAD_PRESET ?? 'ntv_gallery')
+    fd.append('upload_preset', UPLOAD_PRESET ?? 'gallery')
     fd.append('folder', 'ntv-gallery')
     const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
       method: 'POST',
