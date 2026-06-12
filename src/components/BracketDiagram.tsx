@@ -133,8 +133,8 @@ function MatchCard({ m, seeds }: { m: BMatch; seeds?: [string, string] }) {
 }
 
 // ── Winner box ────────────────────────────────────────────────────────────────
-function WinnerBox({ name, label, color, borderColor, bgColor }: {
-  name: string; label: string; color: string; borderColor: string; bgColor: string
+function WinnerBox({ name, label, color, borderColor }: {
+  name: string; label: string; color: string; borderColor: string
 }) {
   return (
     <div style={{ width: WB }}>
@@ -144,11 +144,12 @@ function WinnerBox({ name, label, color, borderColor, bgColor }: {
       }}>{label}</div>
       <div style={{
         borderRadius: 8,
-        border: `1.5px solid ${borderColor}`,
-        background: bgColor,
+        border: `2px solid ${borderColor}`,
+        background: '#ffffff',
         padding: '10px 14px',
+        boxShadow: '0 2px 12px rgba(0,0,0,.18)',
       }}>
-        <div style={{ fontSize: 13, fontWeight: 800, color: '#111d36', lineHeight: 1.3 }}>
+        <div style={{ fontSize: 14, fontWeight: 800, color: '#2a3a5c', lineHeight: 1.3 }}>
           {name}
         </div>
       </div>
@@ -251,17 +252,16 @@ export default function BracketDiagram({ matches, getMatchHref }: Props) {
           {finalWinner ? (
             <WinnerBox
               name={finalWinner.name}
-              label="🥇 Чемпион"
+              label="🥇 Аварга"
               color="#c8a24a"
-              borderColor="rgba(200,162,74,.55)"
-              bgColor="rgba(200,162,74,.08)"
+              borderColor="#c8a24a"
             />
           ) : (
             <div style={{
               width: WB, borderRadius: 8, border: '1px dashed #3a4f7a',
               padding: '10px 14px', opacity: 0.4,
             }}>
-              <div style={{ fontSize: 9, fontWeight: 700, color: '#c8a24a', letterSpacing: '.1em', textTransform: 'uppercase', marginBottom: 6 }}>🥇 Чемпион</div>
+              <div style={{ fontSize: 9, fontWeight: 700, color: '#c8a24a', letterSpacing: '.1em', textTransform: 'uppercase', marginBottom: 6 }}>🥇 Аварга</div>
               <div style={{ fontSize: 11, color: '#8c9bbf', fontStyle: 'italic' }}>Тодрохгүй байна</div>
             </div>
           )}
@@ -291,8 +291,7 @@ export default function BracketDiagram({ matches, getMatchHref }: Props) {
                   name={thirdWinner.name}
                   label="🥉 3-р байр"
                   color="#cd7f32"
-                  borderColor="rgba(205,127,50,.45)"
-                  bgColor="rgba(205,127,50,.07)"
+                  borderColor="#cd7f32"
                 />
               ) : (
                 <div style={{
