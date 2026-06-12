@@ -34,6 +34,9 @@ export default function Bracket({ matches, totalRounds }: Props) {
   const r1Count = matches.filter(m => m.round === 1).length || 1
   const totalH = r1Count * slotH1
 
+  const finalMatch = matches.find(m => m.round === totalRounds && m.stage !== 'third')
+  const champion = finalMatch?.status === 'completed' ? finalMatch.winner : null
+
   return (
     <div className="overflow-x-auto">
       <div className="relative flex" style={{ height: totalH + HEADER_H }}>
@@ -93,6 +96,35 @@ export default function Bracket({ matches, totalRounds }: Props) {
             </div>
           )
         })}
+
+        {/* Champion box */}
+        <div style={{ display: 'flex', flexShrink: 0, alignItems: 'center', paddingLeft: 16 }}>
+          {champion ? (
+            <div style={{ width: 160 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: '#c8a24a', letterSpacing: '.12em', textTransform: 'uppercase', marginBottom: 6 }}>
+                🥇 Аварга
+              </div>
+              <div style={{
+                borderRadius: 8, border: '2px solid #c8a24a',
+                background: '#ffffff', padding: '10px 14px',
+                boxShadow: '0 2px 12px rgba(0,0,0,.18)',
+              }}>
+                <div style={{ fontSize: 14, fontWeight: 800, color: '#2a3a5c' }}>
+                  {champion.name}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div style={{ width: 160, opacity: 0.35 }}>
+              <div style={{ fontSize: 9, fontWeight: 700, color: '#c8a24a', letterSpacing: '.12em', textTransform: 'uppercase', marginBottom: 6 }}>
+                🥇 Аварга
+              </div>
+              <div style={{ borderRadius: 8, border: '1px dashed #3a4f7a', padding: '10px 14px' }}>
+                <div style={{ fontSize: 11, color: '#8c9bbf', fontStyle: 'italic' }}>Хүлээгдэж байна</div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

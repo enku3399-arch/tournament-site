@@ -262,7 +262,7 @@ export default function BracketDiagram({ matches, getMatchHref }: Props) {
               padding: '10px 14px', opacity: 0.4,
             }}>
               <div style={{ fontSize: 9, fontWeight: 700, color: '#c8a24a', letterSpacing: '.1em', textTransform: 'uppercase', marginBottom: 6 }}>🥇 Аварга</div>
-              <div style={{ fontSize: 11, color: '#8c9bbf', fontStyle: 'italic' }}>Тодрохгүй байна</div>
+              <div style={{ fontSize: 11, color: '#8c9bbf', fontStyle: 'italic' }}>Хүлээгдэж байна</div>
             </div>
           )}
         </div>
@@ -299,7 +299,7 @@ export default function BracketDiagram({ matches, getMatchHref }: Props) {
                   padding: '10px 14px', opacity: 0.4,
                 }}>
                   <div style={{ fontSize: 9, fontWeight: 700, color: '#cd7f32', letterSpacing: '.1em', textTransform: 'uppercase', marginBottom: 6 }}>🥉 3-р байр</div>
-                  <div style={{ fontSize: 11, color: '#8c9bbf', fontStyle: 'italic' }}>Тодрохгүй байна</div>
+                  <div style={{ fontSize: 11, color: '#8c9bbf', fontStyle: 'italic' }}>Хүлээгдэж байна</div>
                 </div>
               )}
             </div>
