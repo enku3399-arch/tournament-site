@@ -80,21 +80,20 @@ function MatchCard({ m, label, highlight = false }: { m: Match; label?: string; 
           {label}
         </div>
       )}
-      <div style={{ padding: '10px 12px' }}>
-        {[{ name: m.h, side: 'h' as const }, { name: m.a, side: 'a' as const }].map(({ name, side }, idx) => {
+      {[{ name: m.h, side: 'h' as const }, { name: m.a, side: 'a' as const }].map(({ name, side }, idx) => {
           const isWinner = w === side
           return (
             <div key={idx} style={{
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              padding: idx === 0 ? '0 0 6px' : '6px 0 0',
-              borderTop: idx === 1 && score ? '1px solid var(--line-2)' : undefined,
+              padding: '9px 12px',
+              borderTop: '1px solid var(--line-2)',
+              borderLeft: isWinner ? '3px solid var(--gold)' : '3px solid transparent',
             }}>
               <span style={{
-                fontSize: 13, fontWeight: isWinner ? 800 : 500,
-                color: isWinner ? 'white' : 'var(--fog-2)',
+                fontSize: 13, fontWeight: isWinner ? 700 : 400,
+                color: isWinner ? 'var(--paper)' : 'var(--fog-2)',
               }}>
-                {isWinner && <span style={{ color: 'var(--gold)', marginRight: 6 }}>▸</span>}
-                {name || '–'}
+                {name || <span style={{ color: 'var(--fog)', fontStyle: 'italic', fontSize: 11 }}>нэр байхгүй</span>}
               </span>
               {score && (
                 <span style={{
@@ -108,7 +107,6 @@ function MatchCard({ m, label, highlight = false }: { m: Match; label?: string; 
             </div>
           )
         })}
-      </div>
     </div>
   )
 }
