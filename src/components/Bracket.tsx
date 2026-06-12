@@ -132,13 +132,13 @@ function PublicMatchCard({ match, isFinal }: { match: MatchWithTeams; isFinal?: 
           display: 'flex', alignItems: 'center',
           padding: '0 12px', height: isLive ? rowH - 7 : rowH,
           borderTop: idx === 1 ? '1px solid #e8ecf5' : undefined,
-          borderLeft: isWin ? '3px solid #c8a24a' : '3px solid transparent',
-          background: isWin ? 'rgba(200,162,74,.09)' : 'transparent',
+          borderLeft: isWin ? '4px solid #c8a24a' : '4px solid transparent',
+          background: isWin ? 'rgba(200,162,74,.22)' : 'transparent',
         }}>
           <span style={{
             flex: 1, fontSize: 12, lineHeight: 1.2,
-            fontWeight: isWin ? 700 : 400,
-            color: isWin ? '#7c5200' : (name ? '#2a3a5c' : '#aabbcc'),
+            fontWeight: isWin ? 800 : 400,
+            color: isWin ? '#5a3a00' : (name ? '#2a3a5c' : '#aabbcc'),
             fontStyle: name ? 'normal' : 'italic',
             overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
           }}>
@@ -148,7 +148,7 @@ function PublicMatchCard({ match, isFinal }: { match: MatchWithTeams; isFinal?: 
             <span style={{
               fontSize: 14, fontWeight: 800,
               fontFamily: 'ui-monospace, monospace',
-              color: isWin ? '#c8a24a' : '#7a8aaa',
+              color: isWin ? '#b8860b' : '#7a8aaa',
               minWidth: 18, textAlign: 'right',
             }}>
               {score}
