@@ -74,7 +74,7 @@ export default async function SportPage({
   const roundLabel = (r: number) => {
     if (r === totalKnockoutRounds) return 'Финал'
     if (r === totalKnockoutRounds - 1) return 'Хагас финал'
-    if (r === totalKnockoutRounds - 2) return 'Улирал финал'
+    if (r === totalKnockoutRounds - 2) return 'Шилдэг 8'
     return `${r}-р шат`
   }
 

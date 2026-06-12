@@ -213,7 +213,7 @@ export default function DartsAdminClient({ tournamentId, sportId, initialData }:
 
           {/* QF */}
           <section>
-            <h3 className="text-sm font-bold text-muted uppercase tracking-wide mb-3">Улирал финал · QF</h3>
+            <h3 className="text-sm font-bold text-muted uppercase tracking-wide mb-3">Шилдэг 8 · QF</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {data.qf.map((m, i) => (
                 <div key={i} className="bg-surface rounded-lg border border-border px-3 py-2">

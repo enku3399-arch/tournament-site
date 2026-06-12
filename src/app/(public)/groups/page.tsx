@@ -213,7 +213,7 @@ export default async function GroupsPage() {
               const w = dWinner(m)
               const hasScore = m.hs !== null
               return (
-                <div style={{ borderRadius: 12, overflow: 'hidden', border: gold ? '1.5px solid rgba(200,162,74,.6)' : '1px solid var(--line)', background: 'var(--ink-2)' }}>
+                <div style={{ borderRadius: 12, overflow: 'hidden', border: gold ? '1.5px solid rgba(200,162,74,.6)' : '1px solid var(--line)', background: 'var(--paper)' }}>
                   <div style={{ background: gold ? 'rgba(200,162,74,.12)' : 'var(--ink)', padding: '7px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <span style={{ fontSize: 10, fontWeight: 700, color: gold ? 'var(--gold)' : 'var(--fog)', letterSpacing: '.1em', textTransform: 'uppercase' as const }}>{label}</span>
                     {hasScore && <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--fog)', fontFamily: 'var(--mono)' }}>ДУУССАН</span>}
@@ -225,8 +225,9 @@ export default async function GroupsPage() {
                         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                         padding: '9px 14px', borderTop: '1px solid var(--line-2)',
                         borderLeft: isW ? '3px solid var(--gold)' : '3px solid transparent',
+                        background: isW ? 'rgba(200,162,74,.06)' : 'transparent',
                       }}>
-                        <span style={{ fontSize: 13, fontWeight: isW ? 700 : 400, color: isW ? 'var(--paper)' : 'var(--fog-2)' }}>
+                        <span style={{ fontSize: 13, fontWeight: isW ? 700 : 400, color: isW ? 'var(--ink-2)' : 'var(--fog-2)' }}>
                           {name || <span style={{ color: 'var(--fog)', fontStyle: 'italic', fontSize: 11 }}>нэр байхгүй</span>}
                         </span>
                         <span style={{ fontFamily: 'var(--mono)', fontWeight: 800, fontSize: 16, color: isW ? 'var(--gold)' : (hasScore ? 'var(--fog)' : 'var(--fog-2)'), minWidth: 20, textAlign: 'right' }}>
@@ -316,7 +317,7 @@ export default async function GroupsPage() {
 
                   {/* Knockout rounds */}
                   <DRound title="Шилдэг 16" matches={dd.r16 as DM[]} minW={240} />
-                  <DRound title="Улирал финал · QF" matches={(dd.qf as DM[]).filter((m: DM) => m.h)} minW={260} />
+                  <DRound title="Шилдэг 8 · QF" matches={(dd.qf as DM[]).filter((m: DM) => m.h)} minW={260} />
                   <DRound title="Хагас финал · SF" matches={dd.sf as DM[]} minW={280} />
 
                   {/* Final + 3rd place */}

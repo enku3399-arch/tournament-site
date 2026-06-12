@@ -264,7 +264,7 @@ export default async function DartsPage() {
             {(hasQFScores || d.qf.some(m => m.h)) && (
               <div style={{ marginBottom: 40 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--fog)', letterSpacing: '.1em', textTransform: 'uppercase', marginBottom: 12 }}>
-                  Улирал финал · QF
+                  Шилдэг 8 · QF
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 8 }}>
                   {d.qf.filter(m => m.h).map((m, i) => (

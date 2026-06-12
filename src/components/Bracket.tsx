@@ -11,7 +11,7 @@ const HEADER_H = 30
 function roundLabel(r: number, total: number) {
   if (r === total) return 'Финал'
   if (r === total - 1) return 'Хагас финал'
-  if (r === total - 2) return 'Улирал финал'
+  if (r === total - 2) return 'Шилдэг 8'
   return `${r}-р шат`
 }
 
