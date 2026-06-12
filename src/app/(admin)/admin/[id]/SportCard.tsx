@@ -71,12 +71,28 @@ export function SportCard({ tournamentId, sport, teamCount, scheduleVisible = fa
         <div className="border-t border-border px-5 py-3 bg-surface-2 flex items-center flex-wrap gap-3">
           <SeedAimagsButton sportId={sport.id} tournamentId={tournamentId} />
           <SportGenderBadge sport={sport} />
-          <Link
-            href={`/admin/${tournamentId}/groups/${sport.id}`}
-            className="ml-auto rounded-lg border border-primary/50 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/20 transition-colors"
-          >
-            ⊞ Хэсгийн тохиргоо →
-          </Link>
+          {sport.sport_type === 'chess' ? (
+            <Link
+              href={`/admin/${tournamentId}/chess/${sport.id}`}
+              className="ml-auto rounded-lg border border-primary/50 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/20 transition-colors"
+            >
+              ♟️ Шатрын дүн →
+            </Link>
+          ) : sport.sport_type === 'darts' ? (
+            <Link
+              href={`/admin/${tournamentId}/darts/${sport.id}`}
+              className="ml-auto rounded-lg border border-primary/50 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/20 transition-colors"
+            >
+              🎯 Дартсын дүн →
+            </Link>
+          ) : (
+            <Link
+              href={`/admin/${tournamentId}/groups/${sport.id}`}
+              className="ml-auto rounded-lg border border-primary/50 bg-primary/10 px-4 py-2 text-sm font-semibold text-primary hover:bg-primary/20 transition-colors"
+            >
+              ⊞ Хэсгийн тохиргоо →
+            </Link>
+          )}
         </div>
       )}
     </div>
