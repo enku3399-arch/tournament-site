@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { calculateMedalStandings } from '@/lib/medal-calc'
 import type { AimagStanding } from '@/lib/medal-calc'
+import { getSiteSettings } from '@/lib/site-settings'
 import { AIMAG_LOGO } from '@/lib/aimag-logo'
 import RealtimeRefresher from '@/components/RealtimeRefresher'
 import SportCard from './SportCard'
@@ -50,7 +51,8 @@ function AimagBadge({ abbr, rank, name }: { abbr: string; rank: number; name: st
 }
 
 export default async function MedalsPage() {
-  const { standings, sportResults, lastUpdated } = await calculateMedalStandings()
+  const settings = await getSiteSettings()
+  const { standings, sportResults, lastUpdated } = await calculateMedalStandings(settings.sport_overrides)
 
   const topThree = standings.slice(0, 3)
   const rest = standings.slice(3)

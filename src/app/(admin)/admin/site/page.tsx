@@ -1,4 +1,5 @@
 import { getSiteSettings } from '@/lib/site-settings'
+import { calculateMedalStandings } from '@/lib/medal-calc'
 import { SiteCmsClient } from './SiteCmsClient'
 
 export const dynamic = 'force-dynamic'
@@ -13,7 +14,10 @@ create policy "public_read"  on site_settings for select using (true);
 create policy "service_all"  on site_settings for all    using (true);`
 
 export default async function SiteAdminPage() {
-  const settings = await getSiteSettings()
+  const [settings, liveData] = await Promise.all([
+    getSiteSettings(),
+    calculateMedalStandings([]).catch(() => null),
+  ])
   const tableExists = settings._tableExists
 
   return (
@@ -38,7 +42,7 @@ export default async function SiteAdminPage() {
         </div>
       )}
 
-      <SiteCmsClient initialSettings={settings} />
+      <SiteCmsClient initialSettings={settings} liveStandings={liveData?.standings ?? []} liveSportResults={liveData?.sportResults ?? []} />
     </div>
   )
 }

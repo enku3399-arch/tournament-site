@@ -126,6 +126,13 @@ export interface MedalRow {
   b: number
 }
 
+export interface SportOverride {
+  sport_id: string
+  rank1?: string  // team name
+  rank2?: string
+  rank3?: string
+}
+
 export interface ScoringLink {
   id: string
   label: string
@@ -194,6 +201,7 @@ export interface SiteSettings {
   schedule: ScheduleDay[]
   footer_nav: FooterNav
   scoring_links: ScoringLink[]
+  sport_overrides: SportOverride[]
   tournament_history: TournamentEditionHistory[]
   host_schedule: HostScheduleRow[]
   schedule_sports: string[]   // sport ID-ууд — нийтийн хуваарь хуудсанд харуулах
@@ -364,6 +372,7 @@ export const DEFAULT_SETTINGS: SiteSettings = {
       iframe_height: 700,
     },
   ],
+  sport_overrides: [],
   tournament_history: [
     {
       num: 'I', year: '2022', title: '«Алдар-2022»',
@@ -529,5 +538,6 @@ export async function getSiteSettings(): Promise<SiteSettings & { _tableExists: 
   if (!Array.isArray(result.tournament_history)) result.tournament_history = DEFAULT_SETTINGS.tournament_history
   if (!Array.isArray(result.host_schedule)) result.host_schedule = DEFAULT_SETTINGS.host_schedule
   if (!Array.isArray(result.schedule_sports)) result.schedule_sports = DEFAULT_SETTINGS.schedule_sports
+  if (!Array.isArray(result.sport_overrides)) result.sport_overrides = []
   return { ...result, _tableExists: tableExists }
 }

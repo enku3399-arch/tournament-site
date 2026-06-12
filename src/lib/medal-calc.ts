@@ -1,4 +1,5 @@
 import { createServiceClient } from './supabase-server'
+import type { SportOverride } from './site-settings'
 
 export const TOURNAMENT_ID = '0b05625d-2f6d-48de-b69c-d5a23c2f0e3f'
 
@@ -208,7 +209,7 @@ function getSportPlacements(
   return placements
 }
 
-export async function calculateMedalStandings(): Promise<{
+export async function calculateMedalStandings(overrides: SportOverride[] = []): Promise<{
   standings: AimagStanding[]
   sportResults: { id: string; name: string; sport_type: string; podium: { rank: number; name: string }[]; hasResults: boolean }[]
   lastUpdated: string
@@ -243,8 +244,32 @@ export async function calculateMedalStandings(): Promise<{
     const n = sportTeams.length
     if (n === 0) continue
 
-    const placements = getSportPlacements(sportMatches, sportTeams)
+    const override = overrides.find(o => o.sport_id === sport.id)
     const base = getSportBase(sport.name, sport.sport_type)
+
+    // Override горим: гараар оруулсан байрлал ашиглана
+    let placements: Map<string, number>
+    if (override && (override.rank1 || override.rank2 || override.rank3)) {
+      placements = new Map()
+      const nameToId = new Map(sportTeams.map(t => [t.name, t.id]))
+      const overrideRanks: [string | undefined, number][] = [
+        [override.rank1, 1], [override.rank2, 2], [override.rank3, 3],
+      ]
+      const ranked = new Set<string>()
+      for (const [name, rank] of overrideRanks) {
+        if (name) {
+          const id = nameToId.get(name)
+          if (id) { placements.set(id, rank); ranked.add(id) }
+        }
+      }
+      // Үлдсэн багуудыг 4-аас эхлэн нэрлэнэ
+      let nextRank = 4
+      for (const t of sportTeams) {
+        if (!ranked.has(t.id)) placements.set(t.id, nextRank++)
+      }
+    } else {
+      placements = getSportPlacements(sportMatches, sportTeams)
+    }
 
     // Build podium for sport results section
     const podium: { rank: number; name: string }[] = []
@@ -255,8 +280,10 @@ export async function calculateMedalStandings(): Promise<{
       const s = stats.get(aimag)
       if (!s) continue
 
-      // base+offset оноолтын систем ашиглана (raw rank биш)
-      const score = calcTeamScore(team.id, base, sportMatches)
+      // Override горимд байрлалаас шууд оноо тооцно, эсвэл match-аас тооцно
+      const score = override && (override.rank1 || override.rank2 || override.rank3)
+        ? base + (rank - 1)   // 1-р байр=base+0, 2-р=base+1, 3-р=base+2...
+        : calcTeamScore(team.id, base, sportMatches)
       s.pts += score
       if (rank === 1) s.gold++
       if (rank === 2) s.silver++
@@ -267,7 +294,7 @@ export async function calculateMedalStandings(): Promise<{
     }
 
     podium.sort((a, b) => a.rank - b.rank)
-    const hasResults = sportMatches.some(m => m.status === 'completed')
+    const hasResults = sportMatches.some(m => m.status === 'completed') || !!(override?.rank1)
     sportResults.push({ id: sport.id, name: sport.name, sport_type: sport.sport_type, podium, hasResults })
   }
 

@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useCallback, useRef, useEffect } from 'react'
-import type { SiteSettings, NavLink, Sponsor, StatItem, HostAimag, SiteAbout, AboutFact, AboutValue, AboutEdition, HomeSections, NewsArticle, NewsTag, MedalRow, ScheduleDay, ScheduleEvent, FooterNav, ScoringLink } from '@/lib/site-settings'
+import type { SiteSettings, NavLink, Sponsor, StatItem, HostAimag, SiteAbout, AboutFact, AboutValue, AboutEdition, HomeSections, NewsArticle, NewsTag, MedalRow, ScheduleDay, ScheduleEvent, FooterNav, ScoringLink, SportOverride } from '@/lib/site-settings'
+import type { AimagStanding } from '@/lib/medal-calc'
 
 type Tab = 'general' | 'hero' | 'nav' | 'sponsors' | 'stats' | 'media' | 'aimags' | 'about' | 'schedule' | 'footer' | 'sections' | 'news' | 'medals' | 'scoring' | 'history'
 
@@ -1458,98 +1459,158 @@ function NewsTab({
 }
 
 /* ── MEDALS TAB ──────────────────────────────────────────────────────────── */
-function MedalsTab({ data, onSave }: { data: MedalRow[]; onSave: (v: MedalRow[]) => Promise<void> }) {
-  const [rows, setRows] = useState<MedalRow[]>(data)
+type LiveSportResult = { id: string; name: string; sport_type: string; podium: { rank: number; name: string }[]; hasResults: boolean }
+
+function MedalsTab({
+  overrides: initialOverrides,
+  onSaveOverrides,
+  liveStandings,
+  liveSportResults,
+}: {
+  overrides: SportOverride[]
+  onSaveOverrides: (v: SportOverride[]) => Promise<void>
+  liveStandings: AimagStanding[]
+  liveSportResults: LiveSportResult[]
+}) {
+  const [overrides, setOverrides] = useState<SportOverride[]>(initialOverrides)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
-  function update(i: number, field: keyof MedalRow, val: string | number) {
-    setRows(prev => prev.map((r, idx) => idx === i ? { ...r, [field]: val } : r))
+  function getOverride(sportId: string): SportOverride {
+    return overrides.find(o => o.sport_id === sportId) ?? { sport_id: sportId }
   }
-  function remove(i: number) {
-    setRows(prev => prev.filter((_, idx) => idx !== i))
+  function setOverrideField(sportId: string, field: 'rank1' | 'rank2' | 'rank3', val: string) {
+    setOverrides(prev => {
+      const existing = prev.find(o => o.sport_id === sportId)
+      if (existing) return prev.map(o => o.sport_id === sportId ? { ...o, [field]: val } : o)
+      return [...prev, { sport_id: sportId, [field]: val }]
+    })
   }
-  function add() {
-    setRows(prev => [...prev, { name: 'Шинэ аймаг', g: 0, s: 0, b: 0 }])
+  function clearOverride(sportId: string) {
+    setOverrides(prev => prev.filter(o => o.sport_id !== sportId))
   }
-  function move(i: number, dir: -1 | 1) {
-    const j = i + dir
-    if (j < 0 || j >= rows.length) return
-    const next = [...rows];
-    [next[i], next[j]] = [next[j], next[i]]
-    setRows(next)
+  function hasOverride(sportId: string) {
+    const o = overrides.find(ov => ov.sport_id === sportId)
+    return !!(o?.rank1 || o?.rank2 || o?.rank3)
   }
 
   async function save() {
     setSaving(true); setSaved(false)
-    try { await onSave(rows); setSaved(true); setTimeout(() => setSaved(false), 3000) }
+    // Only save overrides that actually have values
+    const clean = overrides.filter(o => o.rank1 || o.rank2 || o.rank3)
+    try { await onSaveOverrides(clean); setSaved(true); setTimeout(() => setSaved(false), 3000) }
     catch { /* error shown globally */ }
     setSaving(false)
   }
 
+  const rankColor = (r: number) => r === 1 ? '#FFD700' : r === 2 ? '#C0C0C0' : r === 3 ? '#CD7F32' : 'var(--fog)'
+
   return (
-    <div className="space-y-4">
-      <p className="text-xs text-muted">Медалийн хүснэгт нүүр хуудас болон /medals хуудсанд гарна. Эрэмбэ нь жагсаалтын дарааллаар тодорхойлогдоно (1-р байранд байгаа нь 1-р байр).</p>
+    <div className="space-y-6">
+      <p className="text-xs text-muted">
+        Медалийн хүснэгт автоматаар match өгөгдлөөс тооцоологддог.
+        Тооцоолол буруу байвал спорт бүрт <b>гараар override</b> оруулж болно — override хадгалсны дараа сайтад шууд тусна.
+      </p>
 
-      <div className="overflow-x-auto rounded-xl border border-border">
-        <table className="w-full text-sm border-collapse">
-          <thead>
-            <tr className="border-b border-border bg-surface-2">
-              <th className="text-left px-3 py-2.5 text-xs font-semibold text-muted uppercase tracking-wider w-10">№</th>
-              <th className="text-left px-3 py-2.5 text-xs font-semibold text-muted uppercase tracking-wider">Аймаг</th>
-              <th className="px-3 py-2.5 text-xs font-semibold text-muted uppercase tracking-wider w-16 text-center">🥇 Алт</th>
-              <th className="px-3 py-2.5 text-xs font-semibold text-muted uppercase tracking-wider w-16 text-center">🥈 Мөнгө</th>
-              <th className="px-3 py-2.5 text-xs font-semibold text-muted uppercase tracking-wider w-16 text-center">🥉 Хүрэл</th>
-              <th className="px-3 py-2.5 text-xs font-semibold text-muted uppercase tracking-wider w-16 text-center">Нийт</th>
-              <th className="w-20" />
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, i) => (
-              <tr key={i} className="border-b border-border/50 hover:bg-surface-2 transition-colors">
-                <td className="px-3 py-2 text-xs text-muted font-mono">
-                  <div className="flex flex-col gap-0.5">
-                    <button type="button" onClick={() => move(i, -1)} disabled={i === 0} className="text-muted hover:text-foreground disabled:opacity-20 text-[10px] leading-none">▲</button>
-                    <span className="text-center">{i + 1}</span>
-                    <button type="button" onClick={() => move(i, 1)} disabled={i === rows.length - 1} className="text-muted hover:text-foreground disabled:opacity-20 text-[10px] leading-none">▼</button>
-                  </div>
-                </td>
-                <td className="px-3 py-2">
-                  <input value={r.name} onChange={e => update(i, 'name', e.target.value)}
-                    className="w-full rounded border border-border bg-surface px-2 py-1 text-sm focus:outline-none focus:border-primary/50" />
-                </td>
-                {(['g', 's', 'b'] as const).map(field => (
-                  <td key={field} className="px-2 py-2 text-center">
-                    <input type="number" min={0} value={r[field]}
-                      onChange={e => update(i, field, parseInt(e.target.value) || 0)}
-                      className="w-12 rounded border border-border bg-surface px-1 py-1 text-sm text-center focus:outline-none focus:border-primary/50" />
-                  </td>
+      {/* Live standings preview */}
+      {liveStandings.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-xs font-bold text-muted uppercase tracking-wider">📊 Одоогийн автомат тооцоолол (нийтийн хуудастай ижил)</h3>
+          <div className="overflow-x-auto rounded-xl border border-border">
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr className="border-b border-border bg-surface-2">
+                  <th className="text-left px-3 py-2 text-xs font-semibold text-muted w-10">#</th>
+                  <th className="text-left px-3 py-2 text-xs font-semibold text-muted">Аймаг</th>
+                  <th className="px-2 py-2 text-xs font-semibold text-muted text-center w-12">🥇</th>
+                  <th className="px-2 py-2 text-xs font-semibold text-muted text-center w-12">🥈</th>
+                  <th className="px-2 py-2 text-xs font-semibold text-muted text-center w-12">🥉</th>
+                  <th className="px-2 py-2 text-xs font-semibold text-muted text-center w-14">Оноо↓</th>
+                </tr>
+              </thead>
+              <tbody>
+                {liveStandings.slice(0, 10).map(s => (
+                  <tr key={s.name} className={`border-b border-border/50 ${s.rank <= 3 ? 'bg-accent/5' : ''}`}>
+                    <td className="px-3 py-1.5 text-xs font-mono" style={{ color: rankColor(s.rank) }}>{s.rank}</td>
+                    <td className="px-3 py-1.5 text-sm font-medium">{s.name}</td>
+                    <td className="px-2 py-1.5 text-center text-xs font-mono" style={{ color: '#FFD700' }}>{s.gold || '—'}</td>
+                    <td className="px-2 py-1.5 text-center text-xs font-mono" style={{ color: '#C0C0C0' }}>{s.silver || '—'}</td>
+                    <td className="px-2 py-1.5 text-center text-xs font-mono" style={{ color: '#CD7F32' }}>{s.bronze || '—'}</td>
+                    <td className="px-2 py-1.5 text-center text-xs font-mono text-muted">{s.pts}</td>
+                  </tr>
                 ))}
-                <td className="px-3 py-2 text-center">
-                  <span className={`text-sm font-bold ${r.g + r.s + r.b > 0 ? 'text-foreground' : 'text-muted/30'}`}>
-                    {r.g + r.s + r.b || '—'}
-                  </span>
-                </td>
-                <td className="px-2 py-2 text-center">
-                  <button type="button" onClick={() => remove(i)} className="text-danger/60 hover:text-danger text-sm">✕</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+                {liveStandings.length > 10 && (
+                  <tr><td colSpan={6} className="px-3 py-1.5 text-xs text-muted text-center">... {liveStandings.length - 10} аймаг нэмэлт</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
-      <button type="button" onClick={add}
-        className="text-sm text-primary hover:text-primary/80 border border-dashed border-primary/40 rounded-lg px-4 py-2 w-full transition-colors">
-        + Аймаг нэмэх
-      </button>
+      {/* Per-sport overrides */}
+      {liveSportResults.length > 0 && (
+        <div className="space-y-2">
+          <h3 className="text-xs font-bold text-muted uppercase tracking-wider">✏️ Спортоор гараар тохируулах (override)</h3>
+          <div className="space-y-2">
+            {liveSportResults.map(sr => {
+              const ov = getOverride(sr.id)
+              const active = hasOverride(sr.id)
+              const calcPodium = sr.podium.slice(0, 3)
+              return (
+                <div key={sr.id} className={`rounded-xl border p-4 space-y-3 ${active ? 'border-accent/40 bg-accent/5' : 'border-border bg-surface-2'}`}>
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <span className="font-semibold text-sm">{sr.name}</span>
+                      {active && <span className="ml-2 text-[10px] font-bold px-2 py-0.5 rounded bg-accent/20 text-accent">Override идэвхтэй</span>}
+                      {!active && sr.hasResults && <span className="ml-2 text-[10px] text-muted">Автомат тооцоолол</span>}
+                      {!active && !sr.hasResults && <span className="ml-2 text-[10px] text-muted/50">Үр дүнгүй</span>}
+                    </div>
+                    {active && (
+                      <button type="button" onClick={() => clearOverride(sr.id)} className="text-xs text-danger/70 hover:text-danger border border-danger/30 rounded px-2 py-0.5">
+                        ✕ Override арилгах
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Current auto result */}
+                  {!active && calcPodium.length > 0 && (
+                    <div className="flex gap-2 flex-wrap">
+                      {calcPodium.map(p => (
+                        <span key={p.rank} className="text-xs px-2 py-0.5 rounded border border-border bg-surface" style={{ color: rankColor(p.rank) }}>
+                          {p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : '🥉'} {p.name}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Override inputs */}
+                  <div className="grid grid-cols-3 gap-2">
+                    {([['rank1', '🥇 1-р байр'], ['rank2', '🥈 2-р байр'], ['rank3', '🥉 3-р байр']] as const).map(([field, label]) => (
+                      <div key={field} className="space-y-1">
+                        <label className="block text-[10px] font-semibold text-muted uppercase">{label}</label>
+                        <input
+                          value={ov[field] ?? ''}
+                          onChange={e => setOverrideField(sr.id, field, e.target.value)}
+                          placeholder="Аймгийн нэр..."
+                          className="w-full rounded border border-border bg-surface px-2 py-1.5 text-xs focus:outline-none focus:border-primary/50"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="flex items-center gap-3 pt-2 border-t border-border">
         <button type="button" onClick={save} disabled={saving}
           className="rounded-lg bg-primary/20 text-primary border border-primary/40 px-5 py-2 text-sm font-semibold hover:bg-primary/30 transition-colors disabled:opacity-50">
-          {saving ? 'Хадгалж байна...' : '💾 Хадгалах'}
+          {saving ? 'Хадгалж байна...' : '💾 Override хадгалах'}
         </button>
-        {saved && <span className="text-sm text-live font-medium">✓ Хадгалагдлаа</span>}
+        {saved && <span className="text-sm text-live font-medium">✓ Хадгалагдлаа — сайтад шууд тусна</span>}
       </div>
     </div>
   )
@@ -2133,7 +2194,11 @@ const SECTION_KEYS: Partial<Record<Tab, keyof HomeSections>> = {
 }
 
 /* ── MAIN CLIENT COMPONENT ────────────────────────────────────────────────── */
-export function SiteCmsClient({ initialSettings }: { initialSettings: SiteSettings }) {
+export function SiteCmsClient({ initialSettings, liveStandings, liveSportResults }: {
+  initialSettings: SiteSettings
+  liveStandings: AimagStanding[]
+  liveSportResults: LiveSportResult[]
+}) {
   const [tab, setTab] = useState<Tab | ''>('general')
   const [settings, setSettings] = useState(initialSettings)
   const [globalErr, setGlobalErr] = useState('')
@@ -2169,7 +2234,7 @@ export function SiteCmsClient({ initialSettings }: { initialSettings: SiteSettin
     if (tab === 'schedule') return <ScheduleTab     data={settings.schedule}        onSave={v => save('schedule', v)}       />
     if (tab === 'footer')   return <FooterTab       data={settings.footer_nav}      onSave={v => save('footer_nav', v)}     />
     if (tab === 'news')     return <NewsTab         data={settings.news} tags={settings.news_tags} onSave={v => save('news', v)} onSaveTags={v => save('news_tags', v)} />
-    if (tab === 'medals')   return <MedalsTab        data={settings.medal_standings} onSave={v => save('medal_standings', v)} />
+    if (tab === 'medals')   return <MedalsTab overrides={settings.sport_overrides ?? []} onSaveOverrides={v => save('sport_overrides', v)} liveStandings={liveStandings} liveSportResults={liveSportResults} />
     if (tab === 'scoring')  return <ScoringLinksTab data={settings.scoring_links}   onSave={v => save('scoring_links', v)}  />
     if (tab === 'sections') return <HomeSectionsTab data={settings.home_sections}   onSave={v => save('home_sections', v)}  />
     if (tab === 'history')  return <HistoryTab saveToApi={save} />
