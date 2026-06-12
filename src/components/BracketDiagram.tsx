@@ -83,7 +83,7 @@ function MatchCard({ m, seeds }: { m: BMatch; seeds?: [string, string] }) {
   const win1 = done && w && t1 && w.name === t1.name
   const win2 = done && w && t2 && w.name === t2.name
 
-  const borderColor = live ? '#ef4444' : done ? 'rgba(200,162,74,.5)' : 'var(--line)'
+  const borderColor = live ? '#ef4444' : done ? '#c8a24a80' : '#2f3e6e'
 
   const rows = [
     { team: t1, isWin: !!win1, score: m.team1_score, seed: seeds?.[0] },
@@ -95,22 +95,22 @@ function MatchCard({ m, seeds }: { m: BMatch; seeds?: [string, string] }) {
       width: CW,
       border: `1px solid ${borderColor}`,
       borderRadius: 8,
-      background: 'var(--paper)',
+      background: '#ffffff',
       overflow: 'hidden',
-      boxShadow: live ? '0 0 0 3px rgba(239,68,68,.15)' : done ? '0 1px 6px rgba(0,0,0,.08)' : 'none',
+      boxShadow: live ? '0 0 0 3px rgba(239,68,68,.15)' : done ? '0 2px 8px rgba(0,0,0,.12)' : '0 1px 4px rgba(0,0,0,.06)',
     }}>
       {rows.map(({ team, isWin, score, seed }, idx) => (
         <div key={idx} style={{
           display: 'flex', alignItems: 'center',
           padding: '0 12px', height: CH / 2,
-          borderTop: idx === 1 ? '1px solid var(--line-2)' : undefined,
+          borderTop: idx === 1 ? '1px solid #e8ecf5' : undefined,
           borderLeft: isWin ? '3px solid #c8a24a' : '3px solid transparent',
-          background: isWin ? 'rgba(200,162,74,.08)' : 'transparent',
+          background: isWin ? 'rgba(200,162,74,.09)' : 'transparent',
         }}>
           <span style={{
             flex: 1, fontSize: 12, lineHeight: 1.2,
             fontWeight: isWin ? 700 : 400,
-            color: isWin ? 'var(--ink-2)' : (team ? 'var(--fog-2)' : '#aaa'),
+            color: isWin ? '#7c5200' : (team ? '#2a3a5c' : '#aab'),
             fontStyle: team ? 'normal' : 'italic',
             overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
           }}>
@@ -120,7 +120,7 @@ function MatchCard({ m, seeds }: { m: BMatch; seeds?: [string, string] }) {
             <span style={{
               fontSize: 14, fontWeight: 800,
               fontFamily: 'ui-monospace, monospace',
-              color: isWin ? '#c8a24a' : 'var(--fog)',
+              color: isWin ? '#c8a24a' : '#7a8aaa',
               minWidth: 18, textAlign: 'right',
             }}>
               {score ?? 0}
@@ -148,7 +148,7 @@ function WinnerBox({ name, label, color, borderColor, bgColor }: {
         background: bgColor,
         padding: '10px 14px',
       }}>
-        <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--ink-2)', lineHeight: 1.3 }}>
+        <div style={{ fontSize: 13, fontWeight: 800, color: '#111d36', lineHeight: 1.3 }}>
           {name}
         </div>
       </div>
@@ -203,7 +203,7 @@ export default function BracketDiagram({ matches, getMatchHref }: Props) {
           width={TOTAL_W} height={TOTAL_H}
         >
           {CONNECTORS.map((d, i) => (
-            <path key={i} d={d} stroke="var(--line)" strokeWidth={1.5} fill="none" strokeLinecap="round" />
+            <path key={i} d={d} stroke="#3a4f7a" strokeWidth={1.5} fill="none" strokeLinecap="round" />
           ))}
         </svg>
 
@@ -213,7 +213,7 @@ export default function BracketDiagram({ matches, getMatchHref }: Props) {
             position: 'absolute', left: BASE_X[r], top: 0,
             width: CW, textAlign: 'center',
             fontSize: 9, fontWeight: 700, letterSpacing: '.1em',
-            color: r === 1 ? '#c8a24a' : 'var(--fog)',
+            color: r === 1 ? '#c8a24a' : '#8c9bbf',
             textTransform: 'uppercase', lineHeight: `${LH}px`,
           }}>
             {ROUND_LABEL[r]}
@@ -258,11 +258,11 @@ export default function BracketDiagram({ matches, getMatchHref }: Props) {
             />
           ) : (
             <div style={{
-              width: WB, borderRadius: 8, border: '1px dashed var(--line)',
+              width: WB, borderRadius: 8, border: '1px dashed #3a4f7a',
               padding: '10px 14px', opacity: 0.4,
             }}>
               <div style={{ fontSize: 9, fontWeight: 700, color: '#c8a24a', letterSpacing: '.1em', textTransform: 'uppercase', marginBottom: 6 }}>🥇 Чемпион</div>
-              <div style={{ fontSize: 11, color: 'var(--fog)', fontStyle: 'italic' }}>Тодрохгүй байна</div>
+              <div style={{ fontSize: 11, color: '#8c9bbf', fontStyle: 'italic' }}>Тодрохгүй байна</div>
             </div>
           )}
         </div>
@@ -296,11 +296,11 @@ export default function BracketDiagram({ matches, getMatchHref }: Props) {
                 />
               ) : (
                 <div style={{
-                  width: WB, borderRadius: 8, border: '1px dashed var(--line)',
+                  width: WB, borderRadius: 8, border: '1px dashed #3a4f7a',
                   padding: '10px 14px', opacity: 0.4,
                 }}>
                   <div style={{ fontSize: 9, fontWeight: 700, color: '#cd7f32', letterSpacing: '.1em', textTransform: 'uppercase', marginBottom: 6 }}>🥉 3-р байр</div>
-                  <div style={{ fontSize: 11, color: 'var(--fog)', fontStyle: 'italic' }}>Тодрохгүй байна</div>
+                  <div style={{ fontSize: 11, color: '#8c9bbf', fontStyle: 'italic' }}>Тодрохгүй байна</div>
                 </div>
               )}
             </div>
