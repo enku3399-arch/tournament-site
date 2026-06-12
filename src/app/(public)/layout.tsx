@@ -1,5 +1,7 @@
 import Image from 'next/image'
 import Link from 'next/link'
+import { headers } from 'next/headers'
+import { notFound } from 'next/navigation'
 import { PublicNav } from '@/components/PublicNav'
 import { getSiteSettings } from '@/lib/site-settings'
 
@@ -7,6 +9,11 @@ export const dynamic = 'force-dynamic'
 
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
   const settings = await getSiteSettings()
+
+  const headersList = await headers()
+  const pathname = headersList.get('x-pathname') ?? '/'
+  const isHidden = settings.nav_links.some(l => l.hidden && l.href === pathname)
+  if (isHidden) notFound()
   const g = settings.general
   const logoWhite = settings.hero.logoWhitePath
 
