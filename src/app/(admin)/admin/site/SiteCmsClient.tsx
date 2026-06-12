@@ -172,7 +172,7 @@ function NavTab({ data, onSave }: { data: NavLink[]; onSave: (v: NavLink[]) => P
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
 
-  function update(i: number, field: keyof NavLink, val: string) {
+  function update(i: number, field: keyof NavLink, val: string | boolean) {
     setLinks(prev => prev.map((l, idx) => idx === i ? { ...l, [field]: val } : l))
   }
   function remove(i: number) {
@@ -201,7 +201,7 @@ function NavTab({ data, onSave }: { data: NavLink[]; onSave: (v: NavLink[]) => P
       <p className="text-xs text-muted">Дарааллыг ↑↓ товчоор солих боломжтой</p>
       <div className="space-y-2">
         {links.map((link, i) => (
-          <div key={i} className="flex items-center gap-2 rounded-lg border border-border bg-surface-2 px-3 py-2">
+          <div key={i} className={`flex items-center gap-2 rounded-lg border px-3 py-2 transition-colors ${link.hidden ? 'border-border/40 bg-surface opacity-50' : 'border-border bg-surface-2'}`}>
             <div className="flex flex-col gap-0.5">
               <button type="button" onClick={() => move(i, -1)} disabled={i === 0} className="text-muted hover:text-foreground disabled:opacity-20 text-xs leading-none">▲</button>
               <button type="button" onClick={() => move(i, 1)} disabled={i === links.length - 1} className="text-muted hover:text-foreground disabled:opacity-20 text-xs leading-none">▼</button>
@@ -218,6 +218,14 @@ function NavTab({ data, onSave }: { data: NavLink[]; onSave: (v: NavLink[]) => P
               placeholder="/path"
               className="w-40 rounded border border-border bg-surface px-2 py-1 text-sm font-mono text-muted focus:outline-none focus:border-primary/50"
             />
+            <button
+              type="button"
+              onClick={() => update(i, 'hidden', !link.hidden)}
+              title={link.hidden ? 'Нуусан — дарж харуулах' : 'Харагдаж байна — дарж нуух'}
+              className={`text-base px-1 transition-colors ${link.hidden ? 'text-muted/40 hover:text-muted' : 'text-foreground/60 hover:text-muted'}`}
+            >
+              {link.hidden ? '🙈' : '👁'}
+            </button>
             <button type="button" onClick={() => remove(i)} className="text-danger/70 hover:text-danger text-sm px-1">✕</button>
           </div>
         ))}

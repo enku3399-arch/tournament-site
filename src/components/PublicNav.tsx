@@ -11,7 +11,7 @@ export function PublicNav({ settings }: { settings: SiteSettings }) {
   const pathname = usePathname()
   const [menuOpen, setMenuOpen] = useState(false)
   const g = settings.general
-  const navLinks = settings.nav_links
+  const navLinks = settings.nav_links.filter(l => !l.hidden)
   const logoColor = settings.hero.logoColorPath
   const logoWhite = settings.hero.logoWhitePath
 

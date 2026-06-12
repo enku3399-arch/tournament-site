@@ -32,6 +32,7 @@ export interface SiteHero {
 export interface NavLink {
   href: string
   label: string
+  hidden?: boolean
 }
 
 export interface Sponsor {
