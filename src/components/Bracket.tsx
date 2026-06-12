@@ -103,57 +103,59 @@ function PublicMatchCard({ match, isFinal }: { match: MatchWithTeams; isFinal?: 
   const isDone = match.status === 'completed'
   const rowH = MATCH_H / 2
 
+  const win1 = isDone && match.winner_id === match.team1_id
+  const win2 = isDone && match.winner_id === match.team2_id
+
+  const borderColor = isLive ? '#ef4444' : isDone ? '#c8a24a80' : '#2f3e6e'
+
+  const rows = [
+    { name: match.team1?.name ?? null, isWin: win1, score: isDone ? match.team1_score : null },
+    { name: match.team2?.name ?? null, isWin: win2, score: isDone ? match.team2_score : null },
+  ]
+
   return (
-    <div className={`relative h-full rounded-lg border overflow-hidden text-xs ${
-      isLive ? 'border-live/50 shadow-sm shadow-live/20' :
-      isFinal ? 'border-accent/40' : 'border-border'
-    }`}>
+    <div style={{
+      width: '100%', height: '100%',
+      border: `1px solid ${borderColor}`,
+      borderRadius: 8,
+      background: '#ffffff',
+      overflow: 'hidden',
+      boxShadow: isLive ? '0 0 0 3px rgba(239,68,68,.15)' : isDone ? '0 2px 8px rgba(0,0,0,.12)' : '0 1px 4px rgba(0,0,0,.06)',
+    }}>
       {isLive && (
-        <div className="flex items-center gap-1 bg-live/20 px-2 text-[10px] font-bold text-live" style={{ height: 14 }}>
-          <span className="h-1.5 w-1.5 rounded-full bg-live animate-pulse-live" />LIVE
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'rgba(239,68,68,.15)', padding: '0 8px', height: 14, fontSize: 10, fontWeight: 700, color: '#ef4444' }}>
+          ● LIVE
         </div>
       )}
-      <TeamRow
-        name={match.team1?.name ?? null}
-        score={isDone ? match.team1_score : null}
-        isWinner={isDone && match.winner_id === match.team1_id}
-        isLoser={isDone && !!match.winner_id && match.winner_id !== match.team1_id}
-        height={isLive ? rowH - 7 : rowH}
-        withBorderB
-      />
-      <TeamRow
-        name={match.team2?.name ?? null}
-        score={isDone ? match.team2_score : null}
-        isWinner={isDone && match.winner_id === match.team2_id}
-        isLoser={isDone && !!match.winner_id && match.winner_id !== match.team2_id}
-        height={isLive ? rowH - 7 : rowH}
-      />
-    </div>
-  )
-}
-
-function TeamRow({
-  name, score, isWinner, isLoser, height, withBorderB,
-}: {
-  name: string | null; score: number | null | undefined
-  isWinner: boolean; isLoser: boolean
-  height: number; withBorderB?: boolean
-}) {
-  return (
-    <div
-      className={`flex items-center gap-1 px-2 ${isWinner ? 'bg-primary/10' : ''} ${withBorderB ? 'border-b border-border/60' : ''}`}
-      style={{ height }}
-    >
-      <span className={`flex-1 truncate font-medium ${
-        isWinner ? 'text-live font-bold' : isLoser ? 'text-muted/50 line-through' : 'text-foreground/80'
-      }`}>
-        {name ?? <span className="italic text-muted/40 text-[10px]">TBD</span>}
-      </span>
-      {score != null && (
-        <span className={`shrink-0 font-bold tabular-nums ${isWinner ? 'text-live' : 'text-muted'}`}>
-          {score}
-        </span>
-      )}
+      {rows.map(({ name, isWin, score }, idx) => (
+        <div key={idx} style={{
+          display: 'flex', alignItems: 'center',
+          padding: '0 12px', height: isLive ? rowH - 7 : rowH,
+          borderTop: idx === 1 ? '1px solid #e8ecf5' : undefined,
+          borderLeft: isWin ? '3px solid #c8a24a' : '3px solid transparent',
+          background: isWin ? 'rgba(200,162,74,.09)' : 'transparent',
+        }}>
+          <span style={{
+            flex: 1, fontSize: 12, lineHeight: 1.2,
+            fontWeight: isWin ? 700 : 400,
+            color: isWin ? '#7c5200' : (name ? '#2a3a5c' : '#aabbcc'),
+            fontStyle: name ? 'normal' : 'italic',
+            overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
+          }}>
+            {name ?? 'TBD'}
+          </span>
+          {score != null && (
+            <span style={{
+              fontSize: 14, fontWeight: 800,
+              fontFamily: 'ui-monospace, monospace',
+              color: isWin ? '#c8a24a' : '#7a8aaa',
+              minWidth: 18, textAlign: 'right',
+            }}>
+              {score}
+            </span>
+          )}
+        </div>
+      ))}
     </div>
   )
 }

@@ -188,10 +188,17 @@ function AdminMatchCard({
   const hasBoth = !!(match.team1_id && match.team2_id)
   const rowH = MATCH_H / 2
 
+  const borderColor = isLive ? '#ef4444' : isDone ? '#c8a24a80' : '#2f3e6e'
+
   return (
-    <div className={`relative h-full rounded-lg border overflow-visible text-xs transition-opacity ${
-      disabled ? 'opacity-50' : ''
-    } ${isDone ? 'border-primary/40' : isLive ? 'border-live/50' : isFinal ? 'border-accent/40' : 'border-border'}`}>
+    <div style={{
+      position: 'relative', height: '100%', borderRadius: 8,
+      border: `1px solid ${borderColor}`,
+      background: '#ffffff', overflow: 'visible',
+      fontSize: 12, transition: 'opacity .15s',
+      opacity: disabled ? 0.5 : 1,
+      boxShadow: isDone ? '0 2px 8px rgba(0,0,0,.12)' : '0 1px 4px rgba(0,0,0,.06)',
+    }}>
 
       {/* Team 1 slot */}
       <SlotRow
@@ -268,34 +275,43 @@ function SlotRow({
   disabled: boolean; height: number; borderBottom?: boolean
 }) {
   return (
-    <div
-      className={`flex items-center gap-1 px-2 ${isWinner ? 'bg-primary/10' : ''} ${borderBottom ? 'border-b border-border/60' : ''}`}
-      style={{ height }}
-    >
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 4, padding: '0 8px',
+      height,
+      borderTop: borderBottom ? undefined : undefined,
+      borderBottom: borderBottom ? '1px solid #e8ecf5' : undefined,
+      borderLeft: isWinner ? '3px solid #c8a24a' : '3px solid transparent',
+      background: isWinner ? 'rgba(200,162,74,.09)' : 'transparent',
+    }}>
       {disabled ? (
         <>
-          <span className={`flex-1 text-[11px] font-medium truncate ${
-            isWinner ? 'text-live font-bold' : isLoser ? 'text-muted/50 line-through' : 'text-foreground/85'
-          }`}>
-            {team?.name ?? <span className="italic text-muted/40 text-[10px]">TBD</span>}
+          <span style={{
+            flex: 1, fontSize: 11, fontWeight: isWinner ? 700 : 400,
+            overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
+            color: isWinner ? '#7c5200' : isLoser ? '#aabbcc' : '#2a3a5c',
+            textDecoration: isLoser ? 'line-through' : undefined,
+            fontStyle: !team ? 'italic' : undefined,
+          }}>
+            {team?.name ?? 'TBD'}
           </span>
           {score != null && (
-            <span className={`shrink-0 font-bold tabular-nums text-xs ${isWinner ? 'text-live' : 'text-muted'}`}>
+            <span style={{ flexShrink: 0, fontWeight: 800, fontFamily: 'ui-monospace, monospace', fontSize: 13, color: isWinner ? '#c8a24a' : '#7a8aaa' }}>
               {score}
             </span>
           )}
         </>
       ) : (
         <select
-          className={`flex-1 text-[10px] border rounded px-1.5 py-0.5 cursor-pointer min-w-0 ${
-            team ? 'bg-surface border-border/40 text-foreground/85' : 'bg-surface-2 border-border/50 text-muted'
-          }`}
-          style={{ colorScheme: 'dark' }}
+          style={{
+            flex: 1, fontSize: 10, border: '1px solid #c8d0e0', borderRadius: 4,
+            padding: '2px 6px', cursor: 'pointer', minWidth: 0,
+            background: '#f4f6fb', color: '#2a3a5c',
+          }}
           value={team?.id ?? ''}
           onChange={e => onAssign(slot, e.target.value || null)}
         >
-          <option value="" style={{ background: '#0f1623' }}>— Баг сонгох —</option>
-          {allTeams.map(t => <option key={t.id} value={t.id} style={{ background: '#0f1623' }}>{t.name}</option>)}
+          <option value="">— Баг сонгох —</option>
+          {allTeams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
         </select>
       )}
     </div>
