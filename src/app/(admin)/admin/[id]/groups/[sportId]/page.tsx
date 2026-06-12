@@ -1017,7 +1017,12 @@ function KnockoutManageRow({
   const isDone = match.status === 'completed'
   const hasTeams = !!(match.team1 && match.team2)
 
-  const autoRatio = sets.reduce<[number, number]>(([r1, r2], [s1, s2]) =>
+  // Hide 3rd set if one team already won first 2 sets
+  const wins1After2 = sets.slice(0, 2).filter(([a, b]) => a > b).length
+  const wins2After2 = sets.slice(0, 2).filter(([a, b]) => b > a).length
+  const visibleSets = (wins1After2 >= 2 || wins2After2 >= 2) ? 2 : 3
+
+  const autoRatio = sets.slice(0, visibleSets).reduce<[number, number]>(([r1, r2], [s1, s2]) =>
     s1 > s2 ? [r1 + 1, r2] : s2 > s1 ? [r1, r2 + 1] : [r1, r2], [0, 0])
   const hasSetData = sets.some(([s1, s2]) => s1 > 0 || s2 > 0)
 
@@ -1163,7 +1168,7 @@ function KnockoutManageRow({
           {isVolleyball ? (
             scoreMode === 'sets' ? (
               <div className="space-y-1.5">
-                {sets.map(([s1, s2], i) => {
+                {sets.slice(0, visibleSets).map(([s1, s2], i) => {
                   const winner = s1 > s2 ? match.team1?.name : s2 > s1 ? match.team2?.name : null
                   return (
                     <div key={i} className="flex items-center justify-center gap-2">
@@ -1244,7 +1249,11 @@ function MatchScoreRow({
   const [saving, setSaving] = useState(false)
   const isDone = match.status === 'completed'
 
-  const autoRatio = sets.reduce<[number, number]>(([r1, r2], [s1, s2]) =>
+  const wins1After2 = sets.slice(0, 2).filter(([a, b]) => a > b).length
+  const wins2After2 = sets.slice(0, 2).filter(([a, b]) => b > a).length
+  const visibleSets = (wins1After2 >= 2 || wins2After2 >= 2) ? 2 : 3
+
+  const autoRatio = sets.slice(0, visibleSets).reduce<[number, number]>(([r1, r2], [s1, s2]) =>
     s1 > s2 ? [r1 + 1, r2] : s2 > s1 ? [r1, r2 + 1] : [r1, r2], [0, 0])
   const hasSetData = sets.some(([s1, s2]) => s1 > 0 || s2 > 0)
 
@@ -1252,7 +1261,7 @@ function MatchScoreRow({
     setSaving(true)
     try {
       if (isVolleyball && scoreMode === 'sets') {
-        await onSave(match.id, autoRatio[0], autoRatio[1], hasSetData ? sets : undefined)
+        await onSave(match.id, autoRatio[0], autoRatio[1], hasSetData ? sets.slice(0, visibleSets) : undefined)
       } else {
         await onSave(match.id, t1, t2)
       }
@@ -1350,7 +1359,7 @@ function MatchScoreRow({
           {isVolleyball ? (
             scoreMode === 'sets' ? (
               <div className="space-y-1.5">
-                {sets.map(([s1, s2], i) => {
+                {sets.slice(0, visibleSets).map(([s1, s2], i) => {
                   const winner = s1 > s2 ? match.team1?.name : s2 > s1 ? match.team2?.name : null
                   return (
                     <div key={i} className="flex items-center justify-center gap-2">
