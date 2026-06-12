@@ -23,6 +23,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
               🌐 Сайт
             </Link>
             <span className="text-border text-xs">|</span>
+            <Link href="/admin/gallery" className="text-xs text-muted hover:text-foreground transition-colors">
+              📸 Цомог
+            </Link>
+            <span className="text-border text-xs">|</span>
             <Link href="/" className="text-xs text-muted hover:text-foreground transition-colors border border-border rounded px-3 py-1.5">
               ← Нийтийн сайт
             </Link>
