@@ -234,6 +234,7 @@ export const DEFAULT_SETTINGS: SiteSettings = {
     { href: '/groups', label: 'Хэсэг' },
     { href: '/schedule', label: 'Хөтөлбөр' },
     { href: '/results', label: 'Үр дүн' },
+    { href: '/gallery', label: 'Цомог' },
     { href: '/history', label: 'Түүх' },
     { href: '/about', label: 'Наадмын тухай' },
   ],

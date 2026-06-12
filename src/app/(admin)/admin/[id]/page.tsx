@@ -69,6 +69,10 @@ export default async function AdminTournamentPage({ params }: { params: Promise<
           className="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-muted hover:text-foreground transition-colors">
           📄 Удирдамж
         </Link>
+        <Link href={`/admin/${id}/gallery`}
+          className="px-4 py-2 text-sm font-medium border-b-2 border-transparent text-muted hover:text-foreground transition-colors">
+          📸 Цомог
+        </Link>
       </div>
 
       {/* Admin code */}
@@ -83,6 +87,21 @@ export default async function AdminTournamentPage({ params }: { params: Promise<
         <Stat label="Спорт" value={sportList.length} icon="🏅" />
         <Stat label="Баг (нийт)" value={uniqueTeamNames.length} icon="👥" />
         <Stat label="Бүртгэл" value={teamList.length} icon="📋" />
+      </div>
+
+      {/* Quick links */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Link
+          href={`/admin/${id}/gallery`}
+          className="flex items-center gap-3 rounded-xl border border-border bg-surface p-4 hover:bg-surface-2 hover:border-primary/30 transition-all group"
+        >
+          <span className="text-2xl">📸</span>
+          <div>
+            <div className="font-semibold text-sm group-hover:text-primary transition-colors">Зургийн цомог</div>
+            <div className="text-xs text-muted">Зураг байршуулах, цомог удирдах</div>
+          </div>
+          <span className="ml-auto text-muted text-sm">→</span>
+        </Link>
       </div>
 
       {/* Sports - collapsible cards */}
