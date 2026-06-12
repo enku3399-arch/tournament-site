@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { calculateMedalStandings } from '@/lib/medal-calc'
+import { calculateMedalStandings, calculateManualMedalStandings } from '@/lib/medal-calc'
 import type { AimagStanding } from '@/lib/medal-calc'
 import { getSiteSettings } from '@/lib/site-settings'
 import { AIMAG_LOGO } from '@/lib/aimag-logo'
@@ -52,7 +52,12 @@ function AimagBadge({ abbr, rank, name }: { abbr: string; rank: number; name: st
 
 export default async function MedalsPage() {
   const settings = await getSiteSettings()
-  const { standings, sportResults, lastUpdated } = await calculateMedalStandings(settings.sport_overrides)
+  const hasManual = settings.manual_medal_results?.some(r => r.placements.some(p => p.team?.trim()))
+  const calcResult = hasManual
+    ? await calculateManualMedalStandings(settings.manual_medal_results)
+    : await calculateMedalStandings(settings.sport_overrides)
+  const { standings, sportResults, lastUpdated } = calcResult
+  const isManual = 'isManual' in calcResult
 
   const topThree = standings.slice(0, 3)
   const rest = standings.slice(3)
@@ -72,7 +77,7 @@ export default async function MedalsPage() {
           </h1>
           <p style={{ fontSize: 13, color: 'var(--fog)', marginTop: 8 }}>
             Шинэчлэгдсэн: {new Date(lastUpdated).toLocaleTimeString('mn-MN', { hour: '2-digit', minute: '2-digit' })}
-            {' · '}Бага оноо = илүү байр (7 төрлийн байрлалын нийлбэр)
+            {' · '}{isManual ? 'Гараар оруулсан үр дүн · Нийт оноо (өндөр = сайн)' : 'Бага оноо = илүү байр (match өгөгдлөөс)'}
           </p>
         </div>
       </section>

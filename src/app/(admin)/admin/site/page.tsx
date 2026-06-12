@@ -16,7 +16,7 @@ create policy "service_all"  on site_settings for all    using (true);`
 export default async function SiteAdminPage() {
   const [settings, liveData] = await Promise.all([
     getSiteSettings(),
-    calculateMedalStandings([]).catch(() => null),
+    calculateMedalStandings([]).catch(() => null),  // just for sports list
   ])
   const tableExists = settings._tableExists
 

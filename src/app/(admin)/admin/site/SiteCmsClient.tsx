@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useCallback, useRef, useEffect } from 'react'
-import type { SiteSettings, NavLink, Sponsor, StatItem, HostAimag, SiteAbout, AboutFact, AboutValue, AboutEdition, HomeSections, NewsArticle, NewsTag, MedalRow, ScheduleDay, ScheduleEvent, FooterNav, ScoringLink, SportOverride } from '@/lib/site-settings'
+import type { SiteSettings, NavLink, Sponsor, StatItem, HostAimag, SiteAbout, AboutFact, AboutValue, AboutEdition, HomeSections, NewsArticle, NewsTag, MedalRow, ScheduleDay, ScheduleEvent, FooterNav, ScoringLink, SportOverride, ManualSportResult, ManualPointTier } from '@/lib/site-settings'
+import { DEFAULT_POINT_TIERS, DEFAULT_LOW_TIERS } from '@/lib/site-settings'
 import type { AimagStanding } from '@/lib/medal-calc'
 
 type Tab = 'general' | 'hero' | 'nav' | 'sponsors' | 'stats' | 'media' | 'aimags' | 'about' | 'schedule' | 'footer' | 'sections' | 'news' | 'medals' | 'scoring' | 'history'
@@ -1461,157 +1462,577 @@ function NewsTab({
 /* ── MEDALS TAB ──────────────────────────────────────────────────────────── */
 type LiveSportResult = { id: string; name: string; sport_type: string; podium: { rank: number; name: string }[]; hasResults: boolean }
 
+// ── Helper: compute preview standings from manual results ─────────────────
+function previewStandings(results: ManualSportResult[]) {
+  const stats = new Map<string, { gold: number; silver: number; bronze: number; pts: number; normPts: number }>()
+  for (const r of results) {
+    const mult = r.scoreDir === 'low' ? -1 : 1
+    for (const p of r.placements) {
+      if (!p.team.trim()) continue
+      if (!stats.has(p.team)) stats.set(p.team, { gold: 0, silver: 0, bronze: 0, pts: 0, normPts: 0 })
+      const s = stats.get(p.team)!
+      const tier = r.tiers.find(t => p.rank >= t.from && p.rank <= t.to)
+      const rawPts = tier?.pts ?? 0
+      s.pts += rawPts
+      s.normPts += rawPts * mult
+      if (p.rank === 1) s.gold++
+      if (p.rank === 2) s.silver++
+      if (p.rank === 3) s.bronze++
+    }
+  }
+  return [...stats.entries()]
+    .map(([name, s]) => ({ name, ...s }))
+    .sort((a, b) => b.gold - a.gold || b.silver - a.silver || b.bronze - a.bronze || b.normPts - a.normPts)
+}
+
+// ── MedalsTab ─────────────────────────────────────────────────────────────
 function MedalsTab({
-  overrides: initialOverrides,
-  onSaveOverrides,
+  manualResults: initialManual,
+  onSaveManual,
   liveStandings,
   liveSportResults,
 }: {
-  overrides: SportOverride[]
-  onSaveOverrides: (v: SportOverride[]) => Promise<void>
+  manualResults: ManualSportResult[]
+  onSaveManual: (v: ManualSportResult[]) => Promise<void>
   liveStandings: AimagStanding[]
   liveSportResults: LiveSportResult[]
 }) {
-  const [overrides, setOverrides] = useState<SportOverride[]>(initialOverrides)
+  const [results, setResults] = useState<ManualSportResult[]>(initialManual)
+  const [open, setOpen] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
+  const [tierTemplate, setTierTemplate] = useState<{ tiers: ManualPointTier[]; scoreDir: 'low' | 'high'; label: string } | null>(() => {
+    try { const s = localStorage.getItem('medal_tier_template'); return s ? JSON.parse(s) : null } catch { return null }
+  })
 
-  function getOverride(sportId: string): SportOverride {
-    return overrides.find(o => o.sport_id === sportId) ?? { sport_id: sportId }
+  const isManualMode = results.some(r => r.placements.some(p => p.team.trim()))
+  const preview = isManualMode ? previewStandings(results) : null
+
+  function getResult(sportId: string): ManualSportResult {
+    return results.find(r => r.sport_id === sportId) ?? {
+      sport_id: sportId,
+      tiers: DEFAULT_POINT_TIERS.map(t => ({ ...t })),
+      placements: [],
+    }
   }
-  function setOverrideField(sportId: string, field: 'rank1' | 'rank2' | 'rank3', val: string) {
-    setOverrides(prev => {
-      const existing = prev.find(o => o.sport_id === sportId)
-      if (existing) return prev.map(o => o.sport_id === sportId ? { ...o, [field]: val } : o)
-      return [...prev, { sport_id: sportId, [field]: val }]
+  function setResult(sportId: string, r: ManualSportResult) {
+    setResults(prev => {
+      const exists = prev.find(x => x.sport_id === sportId)
+      if (exists) return prev.map(x => x.sport_id === sportId ? r : x)
+      return [...prev, r]
     })
   }
-  function clearOverride(sportId: string) {
-    setOverrides(prev => prev.filter(o => o.sport_id !== sportId))
+  function clearSport(sportId: string) {
+    setResults(prev => prev.filter(x => x.sport_id !== sportId))
   }
-  function hasOverride(sportId: string) {
-    const o = overrides.find(ov => ov.sport_id === sportId)
-    return !!(o?.rank1 || o?.rank2 || o?.rank3)
+
+  // Open accordion — auto-populate from podium if no manual data yet
+  function openSport(sportId: string, podium: { rank: number; name: string }[]) {
+    if (open === sportId) { setOpen(null); return }
+    setOpen(sportId)
+    if (!results.find(r => r.sport_id === sportId)) {
+      const placements = podium
+        .sort((a, b) => a.rank - b.rank)
+        .map((p, i) => ({ rank: i + 1, team: p.name }))
+      // Use saved template tiers if available, otherwise default
+      const tiers = tierTemplate ? tierTemplate.tiers.map(t => ({ ...t })) : DEFAULT_POINT_TIERS.map(t => ({ ...t }))
+      const scoreDir = tierTemplate?.scoreDir ?? 'high'
+      setResults(prev => [...prev, { sport_id: sportId, tiers, placements, scoreDir }])
+    }
+  }
+
+  // Switch scoreDir and apply matching default tiers
+  function toggleScoreDir(sportId: string) {
+    const r = getResult(sportId)
+    const newDir: 'low' | 'high' = r.scoreDir === 'low' ? 'high' : 'low'
+    const defaultTiers = newDir === 'low'
+      ? DEFAULT_LOW_TIERS.map(t => ({ ...t }))
+      : DEFAULT_POINT_TIERS.map(t => ({ ...t }))
+    setResult(sportId, { ...r, scoreDir: newDir, tiers: defaultTiers })
+  }
+
+  // Template: save current sport's tiers+scoreDir, apply to any other sport
+  function saveTemplate(sportId: string, sportName: string) {
+    const r = getResult(sportId)
+    const tmpl = { tiers: r.tiers.map(t => ({ ...t })), scoreDir: r.scoreDir ?? 'high', label: sportName }
+    setTierTemplate(tmpl)
+    try { localStorage.setItem('medal_tier_template', JSON.stringify(tmpl)) } catch { /* ignore */ }
+  }
+  function applyTemplate(sportId: string) {
+    if (!tierTemplate) return
+    const r = getResult(sportId)
+    setResult(sportId, { ...r, tiers: tierTemplate.tiers.map(t => ({ ...t })), scoreDir: tierTemplate.scoreDir })
+  }
+  function applyTemplateAll() {
+    if (!tierTemplate) return
+    setResults(prev => prev.map(r => ({ ...r, tiers: tierTemplate.tiers.map(t => ({ ...t })), scoreDir: tierTemplate.scoreDir })))
+    // Also ensure unloaded sports get template when opened
+    liveSportResults.forEach(sr => {
+      if (!results.find(r => r.sport_id === sr.id)) return
+    })
+  }
+
+  // Tier helpers
+  function setTier(sportId: string, i: number, field: keyof ManualPointTier, val: number) {
+    const r = getResult(sportId)
+    setResult(sportId, { ...r, tiers: r.tiers.map((t, idx) => idx === i ? { ...t, [field]: val } : t) })
+  }
+  function addTier(sportId: string) {
+    const r = getResult(sportId)
+    const last = r.tiers[r.tiers.length - 1]
+    setResult(sportId, { ...r, tiers: [...r.tiers, { from: (last?.to ?? 0) + 1, to: (last?.to ?? 0) + 4, pts: 1 }] })
+  }
+  function removeTier(sportId: string, i: number) {
+    const r = getResult(sportId)
+    setResult(sportId, { ...r, tiers: r.tiers.filter((_, idx) => idx !== i) })
+  }
+
+  // Placement helpers — list is position-based; rank = idx+1
+  function setTeamName(sportId: string, idx: number, name: string) {
+    const r = getResult(sportId)
+    const placements = r.placements.map((p, i) => i === idx ? { ...p, team: name } : p)
+    setResult(sportId, { ...r, placements })
+  }
+  function moveItem(sportId: string, idx: number, dir: -1 | 1) {
+    const r = getResult(sportId)
+    const arr = [...r.placements]
+    const j = idx + dir
+    if (j < 0 || j >= arr.length) return
+    ;[arr[idx], arr[j]] = [arr[j], arr[idx]]
+    // Reassign ranks by position
+    setResult(sportId, { ...r, placements: arr.map((p, i) => ({ ...p, rank: i + 1 })) })
+  }
+  function removeItem(sportId: string, idx: number) {
+    const r = getResult(sportId)
+    const arr = r.placements.filter((_, i) => i !== idx).map((p, i) => ({ ...p, rank: i + 1 }))
+    setResult(sportId, { ...r, placements: arr })
+  }
+
+  function getPts(tiers: ManualSportResult['tiers'], rank: number): number {
+    const t = tiers.find(t => rank >= t.from && rank <= t.to)
+    return t?.pts ?? 0
   }
 
   async function save() {
     setSaving(true); setSaved(false)
-    // Only save overrides that actually have values
-    const clean = overrides.filter(o => o.rank1 || o.rank2 || o.rank3)
-    try { await onSaveOverrides(clean); setSaved(true); setTimeout(() => setSaved(false), 3000) }
+    const clean = results.filter(r => r.placements.some(p => p.team.trim()))
+    try { await onSaveManual(clean); setSaved(true); setTimeout(() => setSaved(false), 4000) }
     catch { /* error shown globally */ }
     setSaving(false)
   }
 
-  const rankColor = (r: number) => r === 1 ? '#FFD700' : r === 2 ? '#C0C0C0' : r === 3 ? '#CD7F32' : 'var(--fog)'
+  const rankBg = (r: number) =>
+    r === 1 ? 'rgba(255,215,0,.07)' : r === 2 ? 'rgba(192,192,192,.07)' : r === 3 ? 'rgba(205,127,50,.07)' : 'transparent'
+  const rankColor = (r: number) => r === 1 ? '#FFD700' : r === 2 ? '#C0C0C0' : r === 3 ? '#CD7F32' : 'var(--fog-2)'
+  const rankLabel = (r: number) => r === 1 ? '🥇' : r === 2 ? '🥈' : r === 3 ? '🥉' : `${r}.`
 
   return (
-    <div className="space-y-6">
-      <p className="text-xs text-muted">
-        Медалийн хүснэгт автоматаар match өгөгдлөөс тооцоологддог.
-        Тооцоолол буруу байвал спорт бүрт <b>гараар override</b> оруулж болно — override хадгалсны дараа сайтад шууд тусна.
-      </p>
+    <div className="space-y-5">
+      {/* Mode banner */}
+      <div className={`rounded-lg border px-4 py-3 text-sm ${isManualMode
+        ? 'border-live/30 bg-live/5 text-live'
+        : 'border-border bg-surface-2 text-muted'}`}>
+        {isManualMode
+          ? '✅ Гараар оруулах горим идэвхтэй — нийтийн хуудасанд гараар оруулсан үр дүн харагдана'
+          : '🔄 Автомат горим — match өгөгдлөөс тооцоологддог. Спорт нээснээр автоматаар аймгуудыг дүүргэж, засах боломжтой'}
+      </div>
 
-      {/* Live standings preview */}
-      {liveStandings.length > 0 && (
+      {/* Template status bar */}
+      {tierTemplate && (
+        <div className="flex items-center gap-3 rounded-lg border border-live/20 bg-live/5 px-4 py-2.5">
+          <span className="text-xs text-live flex-1">
+            📋 Загвар: <strong>{tierTemplate.label}</strong>
+            {' · '}{tierTemplate.scoreDir === 'low' ? '↑ Бага оноо = сайн' : '↓ Их оноо = сайн'}
+            {' · '}{tierTemplate.tiers.length} шат
+            {' · '}Шинэ спорт нээхэд автоматаар хэрэглэгдэнэ
+          </span>
+          <button
+            type="button"
+            onClick={applyTemplateAll}
+            className="text-[11px] font-semibold px-3 py-1 rounded border border-live/40 text-live hover:bg-live/15 transition-colors whitespace-nowrap"
+          >
+            ⚡ Бүх спортод хэрэглэх
+          </button>
+          <button
+            type="button"
+            onClick={() => { setTierTemplate(null); try { localStorage.removeItem('medal_tier_template') } catch { /* ignore */ } }}
+            className="text-danger/40 hover:text-danger text-xs"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* Per-sport accordion */}
+      <div className="space-y-2">
+        {liveSportResults.map(sr => {
+          const res = getResult(sr.id)
+          const savedEntry = results.find(r => r.sport_id === sr.id)
+          const hasData = savedEntry?.placements.some(p => p.team.trim())
+          const isOpen = open === sr.id
+          const filledCount = savedEntry?.placements.filter(p => p.team.trim()).length ?? 0
+
+          return (
+            <div key={sr.id} className={`rounded-xl border overflow-hidden transition-colors ${hasData ? 'border-live/30' : 'border-border'}`}>
+              {/* Header */}
+              <div
+                className={`flex items-center gap-3 px-4 py-3 cursor-pointer select-none ${isOpen ? 'bg-surface' : 'bg-surface-2 hover:bg-surface'}`}
+                onClick={() => openSport(sr.id, sr.podium)}
+              >
+                <span className="flex-1 font-semibold text-sm">{sr.name}</span>
+                {hasData
+                  ? <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-live/15 text-live">{filledCount} байр оруулсан</span>
+                  : sr.hasResults
+                    ? <span className="text-[10px] text-muted">Автомат · {sr.podium.length} баг</span>
+                    : <span className="text-[10px] text-muted/40">Үр дүнгүй</span>
+                }
+                {hasData && (
+                  <button type="button" onClick={e => { e.stopPropagation(); clearSport(sr.id) }}
+                    className="text-danger/50 hover:text-danger text-xs px-1.5 py-0.5 rounded border border-transparent hover:border-danger/30">
+                    ✕ арилгах
+                  </button>
+                )}
+                <span className="text-muted text-xs">{isOpen ? '▲' : '▼'}</span>
+              </div>
+
+              {isOpen && (
+                <div className="border-t border-border bg-surface px-4 py-4 space-y-5">
+
+                  {/* Tier editor */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <h4 className="text-xs font-bold text-muted uppercase tracking-wider">Байрны оноо тодорхойлох</h4>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {/* Score direction toggle */}
+                        <button
+                          type="button"
+                          onClick={() => toggleScoreDir(sr.id)}
+                          title="Дарахад тохирох үндсэн оноонуудыг автоматаар дүүргэнэ"
+                          className={`text-[11px] font-semibold px-2.5 py-1 rounded border transition-colors ${
+                            res.scoreDir === 'low'
+                              ? 'bg-amber-500/15 border-amber-500/40 text-amber-400'
+                              : 'bg-primary/10 border-primary/30 text-primary'
+                          }`}
+                        >
+                          {res.scoreDir === 'low' ? '↑ Бага оноо = сайн байр' : '↓ Их оноо = сайн байр'}
+                        </button>
+                        {/* Save as template */}
+                        <button
+                          type="button"
+                          onClick={() => saveTemplate(sr.id, sr.name)}
+                          title="Энэ тохиргоог загвар болгон хадгалах — бусад спортод хэрэглэнэ"
+                          className="text-[11px] px-2 py-1 rounded border border-border text-muted hover:text-foreground hover:border-foreground/30 transition-colors"
+                        >
+                          📋 Загвар хадгалах
+                        </button>
+                        {/* Apply template */}
+                        {tierTemplate && tierTemplate.label !== sr.name && (
+                          <button
+                            type="button"
+                            onClick={() => applyTemplate(sr.id)}
+                            title={`"${tierTemplate.label}" спортын тохиргоог хэрэглэх`}
+                            className="text-[11px] px-2 py-1 rounded border border-live/40 text-live hover:bg-live/10 transition-colors"
+                          >
+                            📥 &ldquo;{tierTemplate.label}&rdquo; загвар хэрэглэх
+                          </button>
+                        )}
+                        <button type="button" onClick={() => addTier(sr.id)}
+                          className="text-xs text-primary border border-dashed border-primary/40 rounded px-2 py-0.5 hover:bg-primary/5">
+                          + Нэмэх
+                        </button>
+                      </div>
+                    </div>
+                    <div className="rounded-lg border border-border overflow-hidden">
+                      <table className="w-full text-xs border-collapse">
+                        <thead>
+                          <tr className="bg-surface-2 border-b border-border">
+                            <th className="text-left px-3 py-2 font-semibold text-muted">Байр (эхлэх)</th>
+                            <th className="text-left px-3 py-2 font-semibold text-muted">Байр (дуусах)</th>
+                            <th className="text-left px-3 py-2 font-semibold text-muted">Оноо</th>
+                            <th className="w-8" />
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {res.tiers.map((t, i) => (
+                            <tr key={i} className="border-b border-border/50">
+                              <td className="px-2 py-1.5">
+                                <input type="number" min={1} value={t.from}
+                                  onChange={e => setTier(sr.id, i, 'from', +e.target.value)}
+                                  className="w-16 rounded border border-border bg-surface-2 px-1.5 py-1 text-xs text-center focus:outline-none focus:border-primary/50" />
+                              </td>
+                              <td className="px-2 py-1.5">
+                                <input type="number" min={1} value={t.to}
+                                  onChange={e => setTier(sr.id, i, 'to', +e.target.value)}
+                                  className="w-16 rounded border border-border bg-surface-2 px-1.5 py-1 text-xs text-center focus:outline-none focus:border-primary/50" />
+                              </td>
+                              <td className="px-2 py-1.5">
+                                <div className="flex items-center gap-2">
+                                  <input type="number" min={0} value={t.pts}
+                                    onChange={e => setTier(sr.id, i, 'pts', +e.target.value)}
+                                    className="w-16 rounded border border-border bg-surface-2 px-1.5 py-1 text-xs text-center focus:outline-none focus:border-primary/50" />
+                                  <span className="text-muted/50 text-[11px]">
+                                    {t.from === t.to ? `${t.from}-р байр` : `${t.from}–${t.to}-р байр`}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="px-2 py-1.5 text-center">
+                                <button type="button" onClick={() => removeTier(sr.id, i)}
+                                  className="text-danger/40 hover:text-danger text-xs">✕</button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* Placement list — reorderable */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold text-muted uppercase tracking-wider">
+                        Дараалал — ↑↓ дарж өөрчилнө, нэр засч болно
+                      </h4>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const r = getResult(sr.id)
+                          setResult(sr.id, { ...r, placements: [...r.placements, { rank: r.placements.length + 1, team: '' }] })
+                        }}
+                        className="text-xs text-primary border border-dashed border-primary/40 rounded px-2 py-0.5 hover:bg-primary/5"
+                      >
+                        + Нэмэх
+                      </button>
+                    </div>
+
+                    {res.placements.length === 0 ? (
+                      <p className="text-xs text-muted/40 py-3 text-center">Жагсаалт хоосон байна</p>
+                    ) : (
+                      <div className="rounded-lg border border-border overflow-hidden">
+                        {res.placements.map((p, idx) => {
+                          const pts = getPts(res.tiers, idx + 1)
+                          const rank = idx + 1
+                          return (
+                            <div
+                              key={idx}
+                              className="flex items-center gap-2 px-3 py-2 border-b border-border/50 last:border-0"
+                              style={{ background: rankBg(rank) }}
+                            >
+                              {/* Rank badge */}
+                              <span className="w-7 text-center text-sm font-bold shrink-0" style={{ color: rankColor(rank) }}>
+                                {rankLabel(rank)}
+                              </span>
+
+                              {/* Team name input */}
+                              <input
+                                value={p.team}
+                                onChange={e => setTeamName(sr.id, idx, e.target.value)}
+                                className="flex-1 min-w-0 rounded border border-transparent bg-transparent px-2 py-1 text-sm focus:outline-none focus:border-border focus:bg-surface-2 transition-colors"
+                              />
+
+                              {/* Points badge */}
+                              <span className="text-xs font-mono shrink-0 w-16 text-right" style={{ color: pts > 0 ? rankColor(rank) : 'var(--fog-2)' }}>
+                                {pts > 0 ? `+${pts} оноо` : '—'}
+                              </span>
+
+                              {/* Move buttons */}
+                              <div className="flex flex-col shrink-0">
+                                <button type="button" onClick={() => moveItem(sr.id, idx, -1)} disabled={idx === 0}
+                                  className="text-[10px] leading-none px-1 py-0.5 text-muted hover:text-foreground disabled:opacity-20 disabled:cursor-not-allowed">
+                                  ▲
+                                </button>
+                                <button type="button" onClick={() => moveItem(sr.id, idx, 1)} disabled={idx === res.placements.length - 1}
+                                  className="text-[10px] leading-none px-1 py-0.5 text-muted hover:text-foreground disabled:opacity-20 disabled:cursor-not-allowed">
+                                  ▼
+                                </button>
+                              </div>
+
+                              {/* Remove */}
+                              <button type="button" onClick={() => removeItem(sr.id, idx)}
+                                className="text-danger/30 hover:text-danger text-xs px-1 shrink-0">✕</button>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Preview standings */}
+      {preview && preview.length > 0 && (
         <div className="space-y-2">
-          <h3 className="text-xs font-bold text-muted uppercase tracking-wider">📊 Одоогийн автомат тооцоолол (нийтийн хуудастай ижил)</h3>
-          <div className="overflow-x-auto rounded-xl border border-border">
+          <h3 className="text-xs font-bold text-muted uppercase tracking-wider">
+            📊 Урьдчилсан харагдац (хадгалаагүй)
+            {results.some(r => r.scoreDir === 'low') && <span className="ml-2 text-amber-400 font-normal normal-case">· бага оноо горим нэгтгэсэн</span>}
+          </h3>
+          <div className="rounded-xl border border-border overflow-hidden">
             <table className="w-full text-sm border-collapse">
               <thead>
-                <tr className="border-b border-border bg-surface-2">
+                <tr className="bg-surface-2 border-b border-border">
                   <th className="text-left px-3 py-2 text-xs font-semibold text-muted w-10">#</th>
                   <th className="text-left px-3 py-2 text-xs font-semibold text-muted">Аймаг</th>
-                  <th className="px-2 py-2 text-xs font-semibold text-muted text-center w-12">🥇</th>
-                  <th className="px-2 py-2 text-xs font-semibold text-muted text-center w-12">🥈</th>
-                  <th className="px-2 py-2 text-xs font-semibold text-muted text-center w-12">🥉</th>
-                  <th className="px-2 py-2 text-xs font-semibold text-muted text-center w-14">Оноо↓</th>
+                  <th className="px-2 py-2 text-xs font-semibold text-muted text-center w-10">🥇</th>
+                  <th className="px-2 py-2 text-xs font-semibold text-muted text-center w-10">🥈</th>
+                  <th className="px-2 py-2 text-xs font-semibold text-muted text-center w-10">🥉</th>
+                  <th className="px-2 py-2 text-xs font-semibold text-muted text-center w-16">Оноо↑</th>
                 </tr>
               </thead>
               <tbody>
-                {liveStandings.slice(0, 10).map(s => (
-                  <tr key={s.name} className={`border-b border-border/50 ${s.rank <= 3 ? 'bg-accent/5' : ''}`}>
-                    <td className="px-3 py-1.5 text-xs font-mono" style={{ color: rankColor(s.rank) }}>{s.rank}</td>
-                    <td className="px-3 py-1.5 text-sm font-medium">{s.name}</td>
+                {preview.map((s, i) => (
+                  <tr key={s.name} className={`border-b border-border/50 ${i < 3 ? 'bg-accent/5' : ''}`}>
+                    <td className="px-3 py-1.5 text-xs font-mono" style={{ color: rankColor(i + 1) }}>{i + 1}</td>
+                    <td className="px-3 py-1.5 text-sm font-semibold">{s.name}</td>
                     <td className="px-2 py-1.5 text-center text-xs font-mono" style={{ color: '#FFD700' }}>{s.gold || '—'}</td>
                     <td className="px-2 py-1.5 text-center text-xs font-mono" style={{ color: '#C0C0C0' }}>{s.silver || '—'}</td>
                     <td className="px-2 py-1.5 text-center text-xs font-mono" style={{ color: '#CD7F32' }}>{s.bronze || '—'}</td>
-                    <td className="px-2 py-1.5 text-center text-xs font-mono text-muted">{s.pts}</td>
+                    <td className="px-2 py-1.5 text-center text-xs font-mono text-accent font-bold">{s.pts}</td>
                   </tr>
                 ))}
-                {liveStandings.length > 10 && (
-                  <tr><td colSpan={6} className="px-3 py-1.5 text-xs text-muted text-center">... {liveStandings.length - 10} аймаг нэмэлт</td></tr>
-                )}
               </tbody>
             </table>
           </div>
         </div>
       )}
 
-      {/* Per-sport overrides */}
-      {liveSportResults.length > 0 && (
-        <div className="space-y-2">
-          <h3 className="text-xs font-bold text-muted uppercase tracking-wider">✏️ Спортоор гараар тохируулах (override)</h3>
-          <div className="space-y-2">
-            {liveSportResults.map(sr => {
-              const ov = getOverride(sr.id)
-              const active = hasOverride(sr.id)
-              const calcPodium = sr.podium.slice(0, 3)
-              return (
-                <div key={sr.id} className={`rounded-xl border p-4 space-y-3 ${active ? 'border-accent/40 bg-accent/5' : 'border-border bg-surface-2'}`}>
-                  <div className="flex items-center justify-between gap-2">
-                    <div>
-                      <span className="font-semibold text-sm">{sr.name}</span>
-                      {active && <span className="ml-2 text-[10px] font-bold px-2 py-0.5 rounded bg-accent/20 text-accent">Override идэвхтэй</span>}
-                      {!active && sr.hasResults && <span className="ml-2 text-[10px] text-muted">Автомат тооцоолол</span>}
-                      {!active && !sr.hasResults && <span className="ml-2 text-[10px] text-muted/50">Үр дүнгүй</span>}
-                    </div>
-                    {active && (
-                      <button type="button" onClick={() => clearOverride(sr.id)} className="text-xs text-danger/70 hover:text-danger border border-danger/30 rounded px-2 py-0.5">
-                        ✕ Override арилгах
-                      </button>
-                    )}
-                  </div>
-
-                  {/* Current auto result */}
-                  {!active && calcPodium.length > 0 && (
-                    <div className="flex gap-2 flex-wrap">
-                      {calcPodium.map(p => (
-                        <span key={p.rank} className="text-xs px-2 py-0.5 rounded border border-border bg-surface" style={{ color: rankColor(p.rank) }}>
-                          {p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : '🥉'} {p.name}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Override inputs */}
-                  <div className="grid grid-cols-3 gap-2">
-                    {([['rank1', '🥇 1-р байр'], ['rank2', '🥈 2-р байр'], ['rank3', '🥉 3-р байр']] as const).map(([field, label]) => (
-                      <div key={field} className="space-y-1">
-                        <label className="block text-[10px] font-semibold text-muted uppercase">{label}</label>
-                        <input
-                          value={ov[field] ?? ''}
-                          onChange={e => setOverrideField(sr.id, field, e.target.value)}
-                          placeholder="Аймгийн нэр..."
-                          className="w-full rounded border border-border bg-surface px-2 py-1.5 text-xs focus:outline-none focus:border-primary/50"
-                        />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
+      <DedupSection />
 
       <div className="flex items-center gap-3 pt-2 border-t border-border">
         <button type="button" onClick={save} disabled={saving}
           className="rounded-lg bg-primary/20 text-primary border border-primary/40 px-5 py-2 text-sm font-semibold hover:bg-primary/30 transition-colors disabled:opacity-50">
-          {saving ? 'Хадгалж байна...' : '💾 Override хадгалах'}
+          {saving ? 'Хадгалж байна...' : '💾 Хадгалах'}
         </button>
-        {saved && <span className="text-sm text-live font-medium">✓ Хадгалагдлаа — сайтад шууд тусна</span>}
+        {saved && <span className="text-sm text-live font-medium">✓ Хадгалагдлаа — /medals хуудасанд харагдана</span>}
       </div>
+    </div>
+  )
+}
+
+/* ── DEDUP SECTION ───────────────────────────────────────────────────────── */
+type DedupEntry = { id: string; created_at: string; active: boolean }
+type DedupGroup = { sport_id: string; sport_name: string; team_name: string; entries: DedupEntry[] }
+
+function DedupSection() {
+  const [groups, setGroups] = useState<DedupGroup[] | null>(null)
+  const [loading, setLoading] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+  const [done, setDone] = useState(0)
+  const [open, setOpen] = useState(false)
+
+  async function check() {
+    setLoading(true); setGroups(null); setDone(0)
+    const res = await fetch('/api/admin/dedup-teams')
+    const data = await res.json()
+    setGroups(data.groups ?? [])
+    setLoading(false)
+  }
+
+  // Orphans = entries not in any match (active=false) — safe to delete
+  const orphans = (groups ?? []).flatMap(g => g.entries.filter(e => !e.active).slice(0, g.entries.length - 1))
+
+  async function deleteOrphans() {
+    if (!orphans.length) return
+    setDeleting(true)
+    const res = await fetch('/api/admin/dedup-teams', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids: orphans.map(e => e.id) }),
+    })
+    const data = await res.json()
+    setDone(data.deleted ?? 0)
+    setDeleting(false)
+    check()
+  }
+
+  return (
+    <div className={`rounded-xl border overflow-hidden ${open ? 'border-border' : 'border-border/50'}`}>
+      <div
+        className="flex items-center gap-3 px-4 py-3 cursor-pointer select-none bg-surface-2 hover:bg-surface"
+        onClick={() => { setOpen(o => !o); if (!open && !groups) check() }}
+      >
+        <span className="text-sm font-semibold flex-1">🔧 Давхцсан бүртгэл шалгах</span>
+        {groups && groups.length === 0 && <span className="text-[10px] text-live">✓ Давхцалгүй</span>}
+        {groups && groups.length > 0 && <span className="text-[10px] text-danger font-bold">{groups.length} давхцал</span>}
+        <span className="text-muted text-xs">{open ? '▲' : '▼'}</span>
+      </div>
+
+      {open && (
+        <div className="border-t border-border bg-surface px-4 py-4 space-y-4">
+          <p className="text-xs text-muted">
+            Нэг спортод нэг нэртэй олон баг бүртгэлтэй байвал тооцоолол алдаатай болдог.
+            Match-д ашиглагдаагүй давхцсан бүртгэлүүдийг аюулгүйгээр устгана.
+          </p>
+
+          <div className="flex items-center gap-3">
+            <button type="button" onClick={check} disabled={loading}
+              className="text-sm px-4 py-1.5 rounded border border-border bg-surface-2 hover:bg-surface text-foreground disabled:opacity-50">
+              {loading ? 'Шалгаж байна...' : '🔍 Дахин шалгах'}
+            </button>
+            {orphans.length > 0 && (
+              <button type="button" onClick={deleteOrphans} disabled={deleting}
+                className="text-sm px-4 py-1.5 rounded border border-danger/40 bg-danger/10 text-danger hover:bg-danger/20 disabled:opacity-50 font-semibold">
+                {deleting ? 'Устгаж байна...' : `🗑 ${orphans.length} давхцсан бүртгэл устгах`}
+              </button>
+            )}
+            {done > 0 && <span className="text-xs text-live">✓ {done} бүртгэл устгагдлаа</span>}
+          </div>
+
+          {groups === null && !loading && (
+            <p className="text-xs text-muted/50 py-2">Товч дарж шалгана уу</p>
+          )}
+
+          {groups && groups.length === 0 && (
+            <div className="rounded-lg border border-live/20 bg-live/5 px-4 py-3 text-sm text-live">
+              ✓ Давхцсан бүртгэл олдсонгүй — бүх аймаг спорт бүрт нэг удаа бүртгэлтэй байна
+            </div>
+          )}
+
+          {groups && groups.length > 0 && (
+            <div className="rounded-lg border border-border overflow-hidden">
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="bg-surface-2 border-b border-border">
+                    <th className="text-left px-3 py-2 font-semibold text-muted">Спорт</th>
+                    <th className="text-left px-3 py-2 font-semibold text-muted">Аймаг</th>
+                    <th className="text-left px-3 py-2 font-semibold text-muted">Давхцалт</th>
+                    <th className="px-3 py-2 font-semibold text-muted text-center w-24">Байдал</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {groups.map(g => (
+                    <tr key={`${g.sport_id}-${g.team_name}`} className="border-b border-border/50">
+                      <td className="px-3 py-2 text-muted">{g.sport_name}</td>
+                      <td className="px-3 py-2 font-semibold">{g.team_name}</td>
+                      <td className="px-3 py-2">
+                        <div className="flex flex-col gap-0.5">
+                          {g.entries.map((e, i) => (
+                            <span key={e.id} className={`text-[10px] font-mono ${e.active ? 'text-live' : 'text-danger/70'}`}>
+                              {e.active ? '✓ Match-д ашиглагдсан' : `✕ Устгагдах (${i + 1}-р давхцал)`}
+                              <span className="text-muted/40 ml-1">· {e.id.slice(0, 8)}...</span>
+                            </span>
+                          ))}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 text-center">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${
+                          g.entries.every(e => !e.active)
+                            ? 'bg-danger/15 text-danger'
+                            : 'bg-amber-500/15 text-amber-400'
+                        }`}>
+                          {g.entries.filter(e => !e.active).length}x устгах боломжтой
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -2234,7 +2655,7 @@ export function SiteCmsClient({ initialSettings, liveStandings, liveSportResults
     if (tab === 'schedule') return <ScheduleTab     data={settings.schedule}        onSave={v => save('schedule', v)}       />
     if (tab === 'footer')   return <FooterTab       data={settings.footer_nav}      onSave={v => save('footer_nav', v)}     />
     if (tab === 'news')     return <NewsTab         data={settings.news} tags={settings.news_tags} onSave={v => save('news', v)} onSaveTags={v => save('news_tags', v)} />
-    if (tab === 'medals')   return <MedalsTab overrides={settings.sport_overrides ?? []} onSaveOverrides={v => save('sport_overrides', v)} liveStandings={liveStandings} liveSportResults={liveSportResults} />
+    if (tab === 'medals')   return <MedalsTab manualResults={settings.manual_medal_results ?? []} onSaveManual={v => save('manual_medal_results', v)} liveStandings={liveStandings} liveSportResults={liveSportResults} />
     if (tab === 'scoring')  return <ScoringLinksTab data={settings.scoring_links}   onSave={v => save('scoring_links', v)}  />
     if (tab === 'sections') return <HomeSectionsTab data={settings.home_sections}   onSave={v => save('home_sections', v)}  />
     if (tab === 'history')  return <HistoryTab saveToApi={save} />

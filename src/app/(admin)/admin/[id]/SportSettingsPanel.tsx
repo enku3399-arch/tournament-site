@@ -69,7 +69,8 @@ const SPORT_OPTIONS = [
   { type: 'basketball', gender: 'female' as const },
   { type: 'darts', gender: null as null },
   { type: 'table_tennis', gender: null as null },
-  { type: 'chess', gender: null as null },
+  { type: 'chess', gender: 'male' as const },
+  { type: 'chess', gender: 'female' as const },
 ]
 
 function sportLabel(type: string, gender: string | null) {
@@ -119,7 +120,11 @@ export function AddSportButton({ tournamentId, existingSportKeys }: {
 
   const available = SPORT_OPTIONS.filter(opt => {
     const key = opt.gender ? `${opt.type}_${opt.gender}` : opt.type
-    return !existingSportKeys.includes(key)
+    if (existingSportKeys.includes(key)) return false
+    // If gender-variant, also block when the old null-gender base exists
+    // (user must first set gender on existing sport, not add a duplicate)
+    if (opt.gender && existingSportKeys.includes(opt.type)) return false
+    return true
   })
 
   async function add(type: string, gender: string | null) {

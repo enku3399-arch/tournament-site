@@ -3,7 +3,7 @@ export type MatchStatus = 'scheduled' | 'live' | 'completed' | 'cancelled'
 export type TeamStatus = 'pending' | 'confirmed'
 export type SportType = 'basketball' | 'volleyball' | 'darts' | 'table_tennis' | 'chess' | 'wrestling' | 'custom'
 export type Gender = 'male' | 'female' | null
-export type MatchStage = 'group' | 'knockout'
+export type MatchStage = 'group' | 'knockout' | 'third'
 
 export interface Tournament {
   id: string

@@ -1,5 +1,10 @@
 import { createServiceClient } from './supabase-server'
-import type { SportOverride } from './site-settings'
+import type { SportOverride, ManualSportResult, ManualPointTier } from './site-settings'
+
+function getTierPts(tiers: ManualPointTier[], rank: number): number {
+  const t = tiers.find(t => rank >= t.from && rank <= t.to)
+  return t?.pts ?? 0
+}
 
 export const TOURNAMENT_ID = '0b05625d-2f6d-48de-b69c-d5a23c2f0e3f'
 
@@ -218,7 +223,7 @@ export async function calculateMedalStandings(overrides: SportOverride[] = []): 
 
   const [{ data: sports }, { data: teams }, { data: matches }] = await Promise.all([
     supabase.from('tournament_sports').select('id, name, sport_type').eq('tournament_id', TOURNAMENT_ID),
-    supabase.from('teams').select('id, name, sport_id').eq('tournament_id', TOURNAMENT_ID),
+    supabase.from('teams').select('id, name, sport_id').eq('tournament_id', TOURNAMENT_ID).eq('status', 'confirmed'),
     supabase.from('matches')
       .select('id, sport_id, status, stage, round, team1_id, team2_id, team1_score, team2_score, winner_id')
       .eq('tournament_id', TOURNAMENT_ID),
@@ -242,7 +247,10 @@ export async function calculateMedalStandings(overrides: SportOverride[] = []): 
     const sportTeams = teamList.filter(t => t.sport_id === sport.id)
     const sportMatches = matchList.filter(m => m.sport_id === sport.id)
     const n = sportTeams.length
-    if (n === 0) continue
+    if (n === 0) {
+      sportResults.push({ id: sport.id, name: sport.name, sport_type: sport.sport_type, podium: [], hasResults: false })
+      continue
+    }
 
     const override = overrides.find(o => o.sport_id === sport.id)
     const base = getSportBase(sport.name, sport.sport_type)
@@ -271,24 +279,32 @@ export async function calculateMedalStandings(overrides: SportOverride[] = []): 
       placements = getSportPlacements(sportMatches, sportTeams)
     }
 
+    // Deduplicate by aimag name — keep best placement per name (one aimag may have many team records)
+    const bestByName = new Map<string, { teamId: string; rank: number }>()
+    for (const team of sportTeams) {
+      const rank = placements.get(team.id) ?? n
+      const existing = bestByName.get(team.name)
+      if (!existing || rank < existing.rank) {
+        bestByName.set(team.name, { teamId: team.id, rank })
+      }
+    }
+
     // Build podium for sport results section
     const podium: { rank: number; name: string }[] = []
 
-    for (const team of sportTeams) {
-      const rank = placements.get(team.id) ?? n
-      const aimag = team.name
+    for (const [aimag, { teamId, rank }] of bestByName) {
       const s = stats.get(aimag)
       if (!s) continue
 
       // Override горимд байрлалаас шууд оноо тооцно, эсвэл match-аас тооцно
       const score = override && (override.rank1 || override.rank2 || override.rank3)
-        ? base + (rank - 1)   // 1-р байр=base+0, 2-р=base+1, 3-р=base+2...
-        : calcTeamScore(team.id, base, sportMatches)
+        ? base + (rank - 1)
+        : calcTeamScore(teamId, base, sportMatches)
       s.pts += score
       if (rank === 1) s.gold++
       if (rank === 2) s.silver++
       if (rank === 3) s.bronze++
-      s.placements.push({ sportId: sport.id, sportName: sport.name, sport_type: sport.sport_type, rank, score, teamName: team.name })
+      s.placements.push({ sportId: sport.id, sportName: sport.name, sport_type: sport.sport_type, rank, score, teamName: aimag })
 
       podium.push({ rank, name: aimag })
     }
@@ -330,4 +346,79 @@ export async function calculateMedalStandings(overrides: SportOverride[] = []): 
     sportResults,
     lastUpdated: new Date().toISOString(),
   }
+}
+
+// ── Manual medal standings (гараар оруулсан үр дүнгээс тооцно) ──────────────
+export async function calculateManualMedalStandings(manualResults: ManualSportResult[]): Promise<{
+  standings: AimagStanding[]
+  sportResults: { id: string; name: string; sport_type: string; podium: { rank: number; name: string }[]; hasResults: boolean }[]
+  lastUpdated: string
+  isManual: true
+}> {
+  const supabase = createServiceClient()
+  const { data: sports } = await supabase
+    .from('tournament_sports')
+    .select('id, name, sport_type')
+    .eq('tournament_id', TOURNAMENT_ID)
+
+  const sportList = (sports ?? []) as DbSport[]
+  const stats = new Map<string, { gold: number; silver: number; bronze: number; pts: number; placements: SportPlacement[] }>()
+  const sportResults: { id: string; name: string; sport_type: string; podium: { rank: number; name: string }[]; hasResults: boolean }[] = []
+
+  for (const sport of sportList) {
+    const mr = manualResults.find(r => r.sport_id === sport.id)
+    const placements = mr?.placements.filter(p => p.team.trim()) ?? []
+    const podium = placements
+      .sort((a, b) => a.rank - b.rank)
+      .slice(0, 3)
+      .map(p => ({ rank: p.rank, name: p.team }))
+
+    for (const p of placements) {
+      const name = p.team.trim()
+      if (!name) continue
+      if (!stats.has(name)) stats.set(name, { gold: 0, silver: 0, bronze: 0, pts: 0, placements: [] })
+      const s = stats.get(name)!
+      const pts = mr ? getTierPts(mr.tiers, p.rank) : 0
+      s.pts += pts
+      if (p.rank === 1) s.gold++
+      if (p.rank === 2) s.silver++
+      if (p.rank === 3) s.bronze++
+      s.placements.push({ sportId: sport.id, sportName: sport.name, sport_type: sport.sport_type, rank: p.rank, score: pts, teamName: name })
+    }
+
+    sportResults.push({ id: sport.id, name: sport.name, sport_type: sport.sport_type, podium, hasResults: placements.length > 0 })
+  }
+
+  // Build standings, tracking normalizedPts (high=+pts, low=-pts) for correct sort
+  const normalizedPts = new Map<string, number>()
+  for (const r of manualResults) {
+    const mult = r.scoreDir === 'low' ? -1 : 1
+    for (const p of r.placements) {
+      const name = p.team.trim()
+      if (!name) continue
+      const pts = getTierPts(r.tiers, p.rank)
+      normalizedPts.set(name, (normalizedPts.get(name) ?? 0) + pts * mult)
+    }
+  }
+
+  const standingsArr: AimagStanding[] = [...stats.entries()].map(([name, s]) => ({
+    name,
+    abbr: AIMAG_ABBR[name] ?? name.slice(0, 2).toUpperCase(),
+    gold: s.gold, silver: s.silver, bronze: s.bronze,
+    medals: s.gold + s.silver + s.bronze,
+    pts: s.pts, rank: 0,
+    sportPlacements: s.placements.sort((a, b) => a.rank - b.rank),
+  }))
+
+  // Sort: gold DESC → silver DESC → bronze DESC → normalizedPts DESC (higher normalized = better)
+  standingsArr.sort((a, b) =>
+    b.gold !== a.gold ? b.gold - a.gold :
+    b.silver !== a.silver ? b.silver - a.silver :
+    b.bronze !== a.bronze ? b.bronze - a.bronze :
+    (normalizedPts.get(b.name) ?? 0) - (normalizedPts.get(a.name) ?? 0) ||
+    a.name.localeCompare(b.name)
+  )
+  standingsArr.forEach((s, i) => { s.rank = i + 1 })
+
+  return { standings: standingsArr, sportResults, lastUpdated: new Date().toISOString(), isManual: true }
 }

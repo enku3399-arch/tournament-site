@@ -133,6 +133,39 @@ export interface SportOverride {
   rank3?: string
 }
 
+export interface ManualPointTier {
+  from: number   // rank_from (e.g. 1, 5)
+  to: number     // rank_to inclusive (e.g. 1, 8)
+  pts: number    // оноо
+}
+
+export interface ManualSportResult {
+  sport_id: string
+  tiers: ManualPointTier[]
+  placements: { rank: number; team: string }[]
+  scoreDir?: 'low' | 'high'  // 'low' = бага оноо = сайн байр (default 'high')
+}
+
+// Их оноо = сайн: 1-р байр=10, 2-р=8 ...
+export const DEFAULT_POINT_TIERS: ManualPointTier[] = [
+  { from: 1, to: 1, pts: 10 },
+  { from: 2, to: 2, pts: 8 },
+  { from: 3, to: 3, pts: 6 },
+  { from: 4, to: 4, pts: 4 },
+  { from: 5, to: 8, pts: 2 },
+  { from: 9, to: 99, pts: 1 },
+]
+
+// Бага оноо = сайн: 1-р байр=1, 2-р=2 ...
+export const DEFAULT_LOW_TIERS: ManualPointTier[] = [
+  { from: 1, to: 1, pts: 1 },
+  { from: 2, to: 2, pts: 2 },
+  { from: 3, to: 3, pts: 3 },
+  { from: 4, to: 4, pts: 4 },
+  { from: 5, to: 8, pts: 6 },
+  { from: 9, to: 99, pts: 10 },
+]
+
 export interface ScoringLink {
   id: string
   label: string
@@ -202,6 +235,7 @@ export interface SiteSettings {
   footer_nav: FooterNav
   scoring_links: ScoringLink[]
   sport_overrides: SportOverride[]
+  manual_medal_results: ManualSportResult[]
   tournament_history: TournamentEditionHistory[]
   host_schedule: HostScheduleRow[]
   schedule_sports: string[]   // sport ID-ууд — нийтийн хуваарь хуудсанд харуулах
@@ -373,6 +407,7 @@ export const DEFAULT_SETTINGS: SiteSettings = {
     },
   ],
   sport_overrides: [],
+  manual_medal_results: [],
   tournament_history: [
     {
       num: 'I', year: '2022', title: '«Алдар-2022»',
@@ -539,5 +574,6 @@ export async function getSiteSettings(): Promise<SiteSettings & { _tableExists: 
   if (!Array.isArray(result.host_schedule)) result.host_schedule = DEFAULT_SETTINGS.host_schedule
   if (!Array.isArray(result.schedule_sports)) result.schedule_sports = DEFAULT_SETTINGS.schedule_sports
   if (!Array.isArray(result.sport_overrides)) result.sport_overrides = []
+  if (!Array.isArray(result.manual_medal_results)) result.manual_medal_results = []
   return { ...result, _tableExists: tableExists }
 }

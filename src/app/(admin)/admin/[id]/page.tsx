@@ -4,6 +4,7 @@ import type { TournamentSport, Team } from '@/lib/types'
 import { SPORT_ICONS, sportDisplayName } from '@/lib/types'
 import { SportCard } from './SportCard'
 import { AddSportButton } from './SportSettingsPanel'
+import { PendingRegistrations } from './PendingRegistrations'
 import Link from 'next/link'
 import { getSiteSettings } from '@/lib/site-settings'
 
@@ -26,9 +27,13 @@ export default async function AdminTournamentPage({ params }: { params: Promise<
   const sportList: TournamentSport[] = sports ?? []
   const teamList: Team[] = teams ?? []
 
-  // Cross-reference: team name → sport_id → team record
+  // Separate confirmed vs pending
+  const confirmedTeams = teamList.filter(t => t.status === 'confirmed')
+  const pendingTeams = teamList.filter(t => t.status !== 'confirmed')
+
+  // Cross-reference: confirmed teams only
   const teamSportMap = new Map<string, Map<string, Team>>()
-  for (const team of teamList) {
+  for (const team of confirmedTeams) {
     if (!teamSportMap.has(team.name)) teamSportMap.set(team.name, new Map())
     if (team.sport_id) teamSportMap.get(team.name)!.set(team.sport_id, team)
   }
@@ -83,10 +88,11 @@ export default async function AdminTournamentPage({ params }: { params: Promise<
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <Stat label="Спорт" value={sportList.length} icon="🏅" />
-        <Stat label="Баг (нийт)" value={uniqueTeamNames.length} icon="👥" />
-        <Stat label="Бүртгэл" value={teamList.length} icon="📋" />
+        <Stat label="Баталгаажсан баг" value={uniqueTeamNames.length} icon="✅" />
+        <Stat label="Нийт бүртгэл" value={confirmedTeams.length} icon="📋" />
+        <Stat label="Хүсэлтүүд" value={pendingTeams.length} icon="⏳" accent={pendingTeams.length > 0} />
       </div>
 
       {/* Quick links */}
@@ -125,10 +131,19 @@ export default async function AdminTournamentPage({ params }: { params: Promise<
         />
       </div>
 
-      {/* Teams cross-reference table */}
+      {/* Pending registrations — shown separately */}
+      {pendingTeams.length > 0 && (
+        <PendingRegistrations
+          initialTeams={pendingTeams}
+          sports={sportList}
+          tournamentId={id}
+        />
+      )}
+
+      {/* Teams cross-reference table — confirmed only */}
       <section className="rounded-xl border border-border bg-surface overflow-hidden">
         <div className="flex items-center justify-between px-5 py-4 border-b border-border bg-surface-2 gap-3 flex-wrap">
-          <h2 className="font-bold">👥 Бүртгэлтэй багууд{uniqueTeamNames.length > 0 && ` (${uniqueTeamNames.length})`}</h2>
+          <h2 className="font-bold">✅ Баталгаажсан багууд{uniqueTeamNames.length > 0 && ` (${uniqueTeamNames.length})`}</h2>
           <div className="flex gap-2 flex-wrap">
             <Link
               href={`/register/${id}`}
@@ -186,9 +201,7 @@ export default async function AdminTournamentPage({ params }: { params: Promise<
                         return (
                           <td key={s.id} className="px-3 py-2.5 text-center">
                             {rec ? (
-                              <span className={`text-sm font-bold ${rec.status === 'confirmed' ? 'text-live' : 'text-accent'}`}>
-                                {rec.status === 'confirmed' ? '✓' : '+'}
-                              </span>
+                              <span className="text-sm font-bold text-live">✓</span>
                             ) : (
                               <span className="text-border text-xs">—</span>
                             )}
@@ -206,8 +219,7 @@ export default async function AdminTournamentPage({ params }: { params: Promise<
         {/* Legend */}
         {uniqueTeamNames.length > 0 && (
           <div className="px-4 py-2.5 border-t border-border flex items-center gap-4 text-xs text-muted">
-            <span><span className="text-live font-bold">✓</span> Баталгаажсан</span>
-            <span><span className="text-accent font-bold">+</span> Хүлээгдэж буй</span>
+            <span><span className="text-live font-bold">✓</span> Бүртгэлтэй</span>
             <span><span className="text-border">—</span> Бүртгэлгүй</span>
           </div>
         )}
@@ -216,11 +228,11 @@ export default async function AdminTournamentPage({ params }: { params: Promise<
   )
 }
 
-function Stat({ label, value, icon }: { label: string; value: number; icon: string }) {
+function Stat({ label, value, icon, accent }: { label: string; value: number; icon: string; accent?: boolean }) {
   return (
-    <div className="rounded-xl border border-border bg-surface p-4 text-center">
+    <div className={`rounded-xl border p-4 text-center ${accent ? 'border-accent/40 bg-accent/5' : 'border-border bg-surface'}`}>
       <div className="text-2xl mb-1">{icon}</div>
-      <div className="text-2xl font-bold">{value}</div>
+      <div className={`text-2xl font-bold ${accent ? 'text-accent' : ''}`}>{value}</div>
       <div className="text-xs text-muted">{label}</div>
     </div>
   )
