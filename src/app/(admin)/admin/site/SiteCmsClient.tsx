@@ -2374,21 +2374,51 @@ function HomeSectionsTab({ data, onSave }: { data: HomeSections; onSave: (v: Hom
 /* ── HISTORY TAB ─────────────────────────────────────────────────────────── */
 const AIMAG_LIST = [
   '', 'Архангай', 'Багануур', 'Баян-Өлгий', 'Баянхонгор', 'Булган',
-  'Говь-Алтай', 'Дархан-Уул', 'Дорноговь', 'Дорнод', 'Дундговь',
+  'Говь-Алтай', 'Говьсүмбэр', 'Дархан-Уул', 'Дорноговь', 'Дорнод', 'Дундговь',
   'Завхан', 'Орхон', 'Өвөрхангай', 'Өмнөговь', 'Сүхбаатар',
   'Сэлэнгэ', 'Төв', 'Увс', 'Ховд', 'Хөвсгөл', 'Хэнтий',
+  'Улаанбаатар', 'Ажилчин', 'Найрамдал',
 ]
 const H_SPORTS = ['Сагсан бөмбөг','Волейбол','Дартс','Ширээний теннис','Шатар','Бөх']
 const H_ICON: Record<string,string> = {'Сагсан бөмбөг':'🏀','Волейбол':'🏐','Дартс':'🎯','Ширээний теннис':'🏓','Шатар':'♟️','Бөх':'🤼'}
 
 type HResult = {id:string;sport:string;gender:string;gold:string;gold_name:string;silver:string;silver_name:string;bronze:string;bronze_name:string}
 type HAward  = {id:string;sport:string;gender:string;title:string;aimag:string;name:string}
-type HTData  = {overall_champion:string;results:HResult[];awards:HAward[]}
+type HMeta   = {year:string;title:string;city:string;venue:string;note:string}
+type HTData  = {overall_champion:string;results:HResult[];awards:HAward[];meta?:HMeta}
 
 const mkR=(sport:string,gender:string,g='',gn='',s='',sn='',b='',bn=''):HResult=>
   ({id:`${sport}${gender}`,sport,gender,gold:g,gold_name:gn,silver:s,silver_name:sn,bronze:b,bronze_name:bn})
 const mkA=(sport:string,gender:string,title:string,aimag='',name=''):HAward=>
   ({id:`${sport}${gender}${title}`,sport,gender,title,aimag,name})
+
+// Наадмын дугаарын дараалал. I–IV нь кодод суурь мета мэдээлэлтэй (public/history),
+// V-аас цааш админ дотроос нэмэгдэх ба мета мэдээллээ history_data дотор хадгална.
+const NAADAM_ORDER = ['I','II','III','IV','V','VI','VII','VIII','IX','X','XI','XII']
+const BASE_NAADAMS = ['I','II','III','IV']
+
+// Шууд (live) тэмцээний нэрнээс спорт + хүйс салгах
+function parseLiveSport(name:string):{sport:string;gender:string}{
+  let gender = 'mixed'
+  if (/эрэгтэй/i.test(name)) gender = 'male'
+  else if (/эмэгтэй/i.test(name)) gender = 'female'
+  const cleaned = name.replace(/\s*\(\s*(?:эрэгтэй|эмэгтэй)\s*\)\s*/i,'').trim()
+  const found = H_SPORTS.find(s => cleaned.includes(s) || s.includes(cleaned))
+  return { sport: found ?? cleaned, gender }
+}
+
+// Шууд тэмцээний дүнг наадмын дүнгийн форматруу хөрвүүлэх
+function liveToResults(live:LiveSportResult[]):HResult[]{
+  return live
+    .filter(sr => sr.podium && sr.podium.length > 0)
+    .map(sr => {
+      const { sport, gender } = parseLiveSport(sr.name)
+      const pick = (rk:number) => sr.podium.find(p => p.rank === rk)?.name ?? ''
+      const r = mkR(sport, gender, pick(1),'', pick(2),'', pick(3),'')
+      r.id = sr.id
+      return r
+    })
+}
 
 const H_DEFAULTS:Record<string,HTData> = {
   I:{
@@ -2454,8 +2484,8 @@ const H_DEFAULTS:Record<string,HTData> = {
   },
 }
 
-function HistoryTab({ saveToApi }: { saveToApi: (key: string, value: unknown) => Promise<void> }) {
-  const [active, setActive] = useState<'I'|'II'|'III'|'IV'>('III')
+function HistoryTab({ saveToApi, liveSportResults }: { saveToApi: (key: string, value: unknown) => Promise<void>; liveSportResults: LiveSportResult[] }) {
+  const [active, setActive] = useState<string>('IV')
   const [allData, setAllData] = useState<Record<string,HTData>>(H_DEFAULTS)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -2470,10 +2500,35 @@ function HistoryTab({ saveToApi }: { saveToApi: (key: string, value: unknown) =>
       })
   }, [])
 
-  const cur = allData[active]
+  // Дугаарын дарааллаар одоо байгаа наадмууд
+  const editions = NAADAM_ORDER.filter(n => allData[n])
+  const cur = allData[active] ?? allData[editions[editions.length - 1]]
+  const isAdded = !BASE_NAADAMS.includes(active)   // админаас нэмсэн наадам уу
   const setF = (field: keyof HTData, val: any) => {
     setAllData(p => ({ ...p, [active]: { ...p[active], [field]: val } }))
     setSaved(false)
+  }
+  const setMeta = (k: keyof HMeta, v: string) =>
+    setF('meta', { year:'', title:'', city:'', venue:'', note:'', ...(cur.meta ?? {}), [k]: v })
+
+  // Шинэ наадам нэмэх — дараагийн дугаарыг автоматаар авч, шууд дүнг таамаглан оруулна
+  const addNaadam = () => {
+    const next = NAADAM_ORDER.find(n => !allData[n])
+    if (!next) return
+    const auto = liveToResults(liveSportResults)
+    const meta: HMeta = { year:'', title:`${next} Спорт Наадам`, city:'', venue:'', note:'' }
+    setAllData(p => ({ ...p, [next]: { overall_champion:'', results:auto, awards:[], meta } }))
+    setActive(next)
+    setSaved(false)
+  }
+  const delNaadam = (n: string) => {
+    if (BASE_NAADAMS.includes(n)) return
+    setAllData(p => { const c = { ...p }; delete c[n]; return c })
+    setActive('IV')
+    setSaved(false)
+  }
+  const refreshFromLive = () => {
+    setF('results', liveToResults(liveSportResults))
   }
 
   const updR = (id: string, key: string, val: string) =>
@@ -2498,14 +2553,63 @@ function HistoryTab({ saveToApi }: { saveToApi: (key: string, value: unknown) =>
   return (
     <div className="space-y-5">
       {/* Наадам selector */}
-      <div className="flex gap-2 flex-wrap">
-        {(['I','II','III','IV'] as const).map(n => (
+      <div className="flex gap-2 flex-wrap items-center">
+        {editions.map(n => (
           <button key={n} type="button" onClick={() => setActive(n)}
             className={`px-4 py-1.5 rounded-lg text-sm font-bold border transition-colors ${
               active===n ? 'bg-primary/20 text-primary border-primary/40' : 'border-border text-muted hover:text-foreground hover:bg-surface-2'
-            }`}>{n} Наадам</button>
+            }`}>{n} Наадам{!BASE_NAADAMS.includes(n) && <span className="ml-1 text-[10px] opacity-60">●</span>}</button>
         ))}
+        <button type="button" onClick={addNaadam}
+          disabled={NAADAM_ORDER.every(n => allData[n])}
+          className="px-3 py-1.5 rounded-lg text-sm font-bold border border-dashed border-primary/40 text-primary hover:bg-primary/10 transition-colors disabled:opacity-40">
+          + Наадам нэмэх
+        </button>
       </div>
+
+      {/* Шинэ наадмын мета мэдээлэл (зөвхөн админаас нэмсэн наадамд) */}
+      {isAdded && cur.meta && (
+        <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="text-xs font-bold text-primary uppercase tracking-wider">📋 {active} наадмын мэдээлэл</div>
+            <button type="button" onClick={() => delNaadam(active)}
+              className="text-xs text-danger/70 hover:text-danger border border-danger/30 hover:border-danger/50 rounded px-2 py-1 transition-colors">
+              🗑 Энэ наадмыг устгах
+            </button>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <label className="block">
+              <span className="text-[11px] text-muted">Нэр (гарчиг)</span>
+              <input value={cur.meta.title} onChange={e => setMeta('title', e.target.value)} placeholder="V Спорт Наадам"
+                className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground placeholder:text-muted/40 focus:outline-none focus:border-primary/50"/>
+            </label>
+            <label className="block">
+              <span className="text-[11px] text-muted">Он</span>
+              <input value={cur.meta.year} onChange={e => setMeta('year', e.target.value)} placeholder="2026"
+                className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground placeholder:text-muted/40 focus:outline-none focus:border-primary/50"/>
+            </label>
+            <label className="block">
+              <span className="text-[11px] text-muted">Хот / аймаг</span>
+              <input value={cur.meta.city} onChange={e => setMeta('city', e.target.value)} placeholder="Улаанбаатар"
+                className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground placeholder:text-muted/40 focus:outline-none focus:border-primary/50"/>
+            </label>
+            <label className="block">
+              <span className="text-[11px] text-muted">Заал / газар</span>
+              <input value={cur.meta.venue} onChange={e => setMeta('venue', e.target.value)} placeholder='"Буянт Ухаа" спорт ордон'
+                className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground placeholder:text-muted/40 focus:outline-none focus:border-primary/50"/>
+            </label>
+          </div>
+          <label className="block">
+            <span className="text-[11px] text-muted">Тайлбар</span>
+            <textarea value={cur.meta.note} onChange={e => setMeta('note', e.target.value)} rows={2} placeholder="Наадмын товч тайлбар..."
+              className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground placeholder:text-muted/40 focus:outline-none focus:border-primary/50 resize-y"/>
+          </label>
+          <button type="button" onClick={refreshFromLive}
+            className="rounded-lg border border-primary/40 bg-primary/10 text-primary px-3 py-1.5 text-xs font-semibold hover:bg-primary/20 transition-colors">
+            🔄 Шууд (live) дүнгээс спортын дүнг дахин татах
+          </button>
+        </div>
+      )}
 
       {/* Цомын эзэн */}
       <div className="rounded-xl border border-border bg-surface-2 p-4 flex items-center gap-4">
@@ -2658,7 +2762,7 @@ export function SiteCmsClient({ initialSettings, liveStandings, liveSportResults
     if (tab === 'medals')   return <MedalsTab manualResults={settings.manual_medal_results ?? []} onSaveManual={v => save('manual_medal_results', v)} liveStandings={liveStandings} liveSportResults={liveSportResults} />
     if (tab === 'scoring')  return <ScoringLinksTab data={settings.scoring_links}   onSave={v => save('scoring_links', v)}  />
     if (tab === 'sections') return <HomeSectionsTab data={settings.home_sections}   onSave={v => save('home_sections', v)}  />
-    if (tab === 'history')  return <HistoryTab saveToApi={save} />
+    if (tab === 'history')  return <HistoryTab saveToApi={save} liveSportResults={liveSportResults} />
     return null
   }
 

@@ -180,7 +180,11 @@ export default async function HistoryPage() {
   const overrides = await fetchHistoryOverrides()
 
   const hd = overrides.history_data ?? {}
-  const history = HISTORY.map(ed => {
+  const ORDER = ['I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X', 'XI', 'XII']
+
+  // Суурь наадмууд (I–IV) — кодын мета мэдээлэл дээр админ override-уудыг нэгтгэнэ
+  const baseNums = new Set(HISTORY.map(h => h.num))
+  const baseEditions = HISTORY.map(ed => {
     const ov = hd[ed.num]
     if (!ov) return ed
     return {
@@ -190,6 +194,30 @@ export default async function HistoryPage() {
       ...(ov.awards  ? { awards:  ov.awards  } : {}),
     }
   })
+
+  // Админаас нэмэгдсэн шинэ наадмууд (V+) — мета мэдээлэл нь history_data дотор
+  const addedEditions = Object.entries(hd)
+    .filter(([num, ov]: [string, any]) => ov && ov.meta && !baseNums.has(num))
+    .map(([num, ov]: [string, any]) => {
+      const results = ov.results ?? []
+      return {
+        num,
+        year: ov.meta.year || '',
+        title: ov.meta.title || `${num} Спорт Наадам`,
+        city: ov.meta.city || '',
+        venue: ov.meta.venue || '',
+        note: ov.meta.note || '',
+        sports_count: new Set(results.map((r: any) => r.sport)).size,
+        categories_count: results.length,
+        overall_champion: ov.overall_champion || '',
+        results,
+        awards: ov.awards ?? [],
+      }
+    })
+
+  const history: any[] = [...baseEditions, ...addedEditions]
+    .sort((a, b) => ORDER.indexOf(a.num) - ORDER.indexOf(b.num))
+  const hasV = history.some(ed => ed.num === 'V')
 
   return (
     <>
@@ -224,15 +252,15 @@ export default async function HistoryPage() {
               <div style={{ textAlign: 'center', paddingTop: 4 }}>
                 <div style={{
                   width: 64, height: 64, borderRadius: 12,
-                  background: idx === HISTORY.length - 1 ? 'var(--gold)' : 'var(--ink)',
+                  background: idx === history.length - 1 ? 'var(--gold)' : 'var(--ink)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                   fontFamily: 'Oswald, sans-serif', fontSize: 22, fontWeight: 900,
-                  color: idx === HISTORY.length - 1 ? 'var(--ink)' : 'var(--paper)',
+                  color: idx === history.length - 1 ? 'var(--ink)' : 'var(--paper)',
                   margin: '0 auto',
                 }}>
                   {ed.num}
                 </div>
-                <div style={{ width: 2, height: idx < HISTORY.length - 1 ? 60 : 0, background: 'var(--line)', margin: '12px auto 0' }} />
+                <div style={{ width: 2, height: idx < history.length - 1 ? 60 : 0, background: 'var(--line)', margin: '12px auto 0' }} />
               </div>
 
               {/* Content */}
@@ -257,7 +285,7 @@ export default async function HistoryPage() {
                 {/* Results grid */}
                 {ed.results.length > 0 && (
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 12, marginBottom: 16 }}>
-                    {ed.results.map((r, ri) => (
+                    {ed.results.map((r: any, ri: number) => (
                       <div key={ri} style={{
                         borderRadius: 10, border: '1px solid var(--line)',
                         background: 'var(--paper)', overflow: 'hidden',
@@ -380,7 +408,8 @@ export default async function HistoryPage() {
             </div>
           ))}
 
-          {/* Current edition promo */}
+          {/* Current edition promo — V наадам түүхэнд нэмэгдээгүй үед л харуулна */}
+          {!hasV && (
           <div style={{
             borderRadius: 16, background: 'var(--ink)',
             padding: '32px', display: 'flex', alignItems: 'center', gap: 24, flexWrap: 'wrap',
@@ -410,6 +439,7 @@ export default async function HistoryPage() {
               Хэсгийн хуваарь →
             </Link>
           </div>
+          )}
         </div>
       </div>
     </>
