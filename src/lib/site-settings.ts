@@ -119,6 +119,42 @@ export interface NewsArticle {
   imagePath?: string
   imagePaths?: string[]
   facebookUrl?: string
+  sourcePostId?: string  // FB постын ID — давхардуулахгүй
+}
+
+/** Facebook-оос ирсэн, зөвшөөрөл хүлээж буй мэдээ */
+export interface PendingNewsItem {
+  id: string
+  source: 'facebook' | 'manual'
+  sourcePostId?: string
+  sourceUrl?: string
+  fetchedAt: string
+  date: string
+  tag: string
+  tagColor: 'red' | 'gold'
+  author: string
+  title: string
+  excerpt: string
+  content?: string
+  imagePaths?: string[]
+  facebookUrl?: string
+}
+
+export interface FacebookSyncSettings {
+  enabled: boolean
+  sourceType: 'group' | 'page'
+  sourceId: string
+  accessToken: string
+  lastSyncAt?: string
+  lastSyncError?: string
+  lastNewCount?: number
+}
+
+export const DEFAULT_FACEBOOK_SYNC: FacebookSyncSettings = {
+  enabled: false,
+  sourceType: 'group',
+  sourceId: '',
+  accessToken: '',
 }
 
 export function parseNewsDate(date: string): number {
@@ -258,6 +294,215 @@ export interface HomeSections {
   sponsors: boolean
 }
 
+/** Нүүр хуудсын бүх засварлах текст */
+export interface HomeSportCard {
+  id: string
+  num: string
+  cat: string
+  name: string
+  href: string
+  desc: string
+}
+
+export interface HomeCopy {
+  hero: {
+    editionSuffix: string
+    eventType: string
+    city: string
+    metaDateLabel: string
+    metaCityLabel: string
+    metaVenueLabel: string
+    metaTeamsLabel: string
+    teamsUnit: string
+    ctaSchedule: string
+    ctaLive: string
+  }
+  countdown: {
+    eyebrow: string
+    targetIso: string
+    dayLabel: string
+    hourLabel: string
+    minLabel: string
+    secLabel: string
+  }
+  ribbon: {
+    tag: string
+    emptyMsg: string
+  }
+  news: {
+    eyebrow: string
+    titlePrefix: string
+    titleGold: string
+    action: string
+    readMore: string
+  }
+  sports: {
+    eyebrow: string
+    titlePrefix: string
+    titleGold: string
+    action: string
+    cards: HomeSportCard[]
+  }
+  schedule: {
+    eyebrow: string
+    titlePrefix: string
+    titleGold: string
+    action: string
+    mainLabel: string
+    extraLabel: string
+  }
+  medals: {
+    eyebrow: string
+    titlePrefix: string
+    titleGold: string
+    action: string
+    colRank: string
+    colAimag: string
+    colGold: string
+    colSilver: string
+    colBronze: string
+    colTotal: string
+  }
+  hostAimags: {
+    eyebrow: string
+    titlePrefix: string
+    titleGold: string
+    action: string
+  }
+  about: {
+    eyebrow: string
+    titlePrefix: string
+    titleGold: string
+    action: string
+    historyTitle: string
+    historyLink: string
+    sportsSuffix: string
+    currentBadge: string
+  }
+  sponsors: {
+    eyebrow: string
+    titlePrefix: string
+    titleGold: string
+    tierPlatinum: string
+    tierGold: string
+    tierSilver: string
+  }
+}
+
+export const DEFAULT_HOME_COPY: HomeCopy = {
+  hero: {
+    editionSuffix: 'Edition',
+    eventType: 'Спорт Наадам',
+    city: 'Улаанбаатар',
+    metaDateLabel: 'Огноо',
+    metaCityLabel: 'Хот',
+    metaVenueLabel: 'Заал',
+    metaTeamsLabel: 'Багууд',
+    teamsUnit: 'аймаг',
+    ctaSchedule: 'Хуваарь үзэх',
+    ctaLive: 'Шууд дамжуулалт',
+  },
+  countdown: {
+    eyebrow: 'Дараагийн наадам эхлэхэд',
+    targetIso: '2026-06-11T13:00:00+08:00',
+    dayLabel: 'Хоног',
+    hourLabel: 'Цаг',
+    minLabel: 'Минут',
+    secLabel: 'Сек',
+  },
+  ribbon: {
+    tag: 'Шууд',
+    emptyMsg: 'Тоглолт байхгүй байна',
+  },
+  news: {
+    eyebrow: 'Сүүлийн мэдээ',
+    titlePrefix: 'Онцлох',
+    titleGold: 'мэдээ',
+    action: 'Бүх мэдээ →',
+    readMore: 'Дэлгэрэнгүй →',
+  },
+  sports: {
+    eyebrow: '5 төрөл · 7 ангилал',
+    titlePrefix: 'Спортын',
+    titleGold: 'төрлүүд',
+    action: 'Хэсгийн хуваарь →',
+    cards: [
+      { id: 's1', num: '01', cat: '♂ Эрэгтэй', name: 'Сагсан\nбөмбөг', href: '/groups#771904c0-f0c9-4b53-a631-f82cecfde598', desc: 'Хэсгийн хуваарь болон нугалааны дүнг энд дарж шууд харна уу →' },
+      { id: 's2', num: '02', cat: '♀ Эмэгтэй', name: 'Сагсан\nбөмбөг', href: '/groups#875a61c1-6c97-4dca-96a0-dd0bcf9b2cc3', desc: 'Хэсгийн хуваарь болон нугалааны дүнг энд дарж шууд харна уу →' },
+      { id: 's3', num: '03', cat: '♂ Эрэгтэй', name: 'Волейбол', href: '/groups#11a8b935-744d-4032-8280-6ef97ad5a9db', desc: 'Хэсгийн хуваарь болон нугалааны дүнг энд дарж шууд харна уу →' },
+      { id: 's4', num: '04', cat: '♀ Эмэгтэй', name: 'Волейбол', href: '/groups#92dfbd70-204d-4293-985f-b2e49e35c526', desc: 'Хэсгийн хуваарь болон нугалааны дүнг энд дарж шууд харна уу →' },
+      { id: 's5', num: '05', cat: 'Баг', name: 'Ширээний\nтеннис', href: '/groups#094da6e9-660d-4646-b149-7a4cbd8f55a0', desc: 'Хэсгийн хуваарь болон нугалааны дүнг энд дарж шууд харна уу →' },
+      { id: 's6', num: '06', cat: 'Баг', name: 'Дартс', href: '/groups#b0b7ca49-82fb-440f-8e9a-19fdbf1f6d11', desc: 'Хэсгийн хуваарь болон нугалааны дүнг энд дарж шууд харна уу →' },
+      { id: 's7', num: '07', cat: 'Баг', name: 'Шатар', href: '/groups#4b254cc4-16e9-430d-9bf2-0257178db95c', desc: 'Хэсгийн хуваарь болон нугалааны дүнг энд дарж шууд харна уу →' },
+    ],
+  },
+  schedule: {
+    eyebrow: '2026.06.11 — 2026.06.13',
+    titlePrefix: 'Наадмын',
+    titleGold: 'хуваарь',
+    action: 'Дэлгэрэнгүй →',
+    mainLabel: 'Үндсэн тэмцээн',
+    extraLabel: 'Хөгжөөн дэмжигчдэд',
+  },
+  medals: {
+    eyebrow: 'Medal Standings · Live',
+    titlePrefix: 'Медалийн',
+    titleGold: 'хүснэгт',
+    action: 'Бүх хүснэгт →',
+    colRank: 'Эрэмбэ',
+    colAimag: 'Аймаг',
+    colGold: 'Алт',
+    colSilver: 'Мөнгө',
+    colBronze: 'Хүрэл',
+    colTotal: 'Нийт',
+  },
+  hostAimags: {
+    eyebrow: 'Organizer Provinces · 2026',
+    titlePrefix: 'Зохион байгуулагч',
+    titleGold: 'аймгууд',
+    action: 'Наадмын түүх →',
+  },
+  about: {
+    eyebrow: 'About the Games',
+    titlePrefix: 'Наадмын',
+    titleGold: 'тухай',
+    action: 'Дэлгэрэнгүй →',
+    historyTitle: 'Наадмын түүх',
+    historyLink: 'Дэлгэрэнгүй →',
+    sportsSuffix: 'төрөл',
+    currentBadge: 'ОДООГИЙН',
+  },
+  sponsors: {
+    eyebrow: 'Partners & Sponsors',
+    titlePrefix: 'Ивээн',
+    titleGold: 'тэтгэгчид',
+    tierPlatinum: 'Алтан\nгишүүн',
+    tierGold: 'Дэмжигч',
+    tierSilver: 'Хамтрагч',
+  },
+}
+
+export function mergeHomeCopy(raw?: Partial<HomeCopy> | null): HomeCopy {
+  const d = DEFAULT_HOME_COPY
+  if (!raw) return structuredClone(d)
+  return {
+    hero: { ...d.hero, ...raw.hero },
+    countdown: { ...d.countdown, ...raw.countdown },
+    ribbon: { ...d.ribbon, ...raw.ribbon },
+    news: { ...d.news, ...raw.news },
+    sports: {
+      ...d.sports,
+      ...raw.sports,
+      cards: raw.sports?.cards?.length ? raw.sports.cards : d.sports.cards,
+    },
+    schedule: { ...d.schedule, ...raw.schedule },
+    medals: { ...d.medals, ...raw.medals },
+    hostAimags: { ...d.hostAimags, ...raw.hostAimags },
+    about: { ...d.about, ...raw.about },
+    sponsors: { ...d.sponsors, ...raw.sponsors },
+  }
+}
+
 export interface SiteSettings {
   general: SiteGeneral
   hero: SiteHero
@@ -267,8 +512,11 @@ export interface SiteSettings {
   host_aimags: HostAimag[]
   about: SiteAbout
   home_sections: HomeSections
+  home_copy: HomeCopy
   news_tags: NewsTag[]
   news: NewsArticle[]
+  news_pending: PendingNewsItem[]
+  facebook_sync: FacebookSyncSettings
   medal_standings: MedalRow[]
   schedule: ScheduleDay[]
   footer_nav: FooterNav
@@ -362,6 +610,8 @@ export const DEFAULT_SETTINGS: SiteSettings = {
     { id: 'n7', date: '2026.05.08', tag: 'Хуваарь',           tagColor: 'gold', author: 'Спортын хороо',           feature: false, title: 'Ширээний теннис болон дартсын тэмцээний хуваарь батлагдлаа',                                           excerpt: 'Ширээний теннисний баг тэмцээн 06.12-нд, дартсын баг тэмцээн 06.11-нд болно.' },
     { id: 'n8', date: '2026.04.30', tag: 'Зохион байгуулалт', tagColor: 'gold', author: 'Зохион байгуулах хороо', feature: false, title: 'V наадмын зохион байгуулах хороо байгуулагдлаа',                                                        excerpt: '"Монгол 87/89" Төгсөгчдийн Холбоо ТББ V наадмын бэлтгэл ажлыг хариуцах зохион байгуулах хороог байгуулж баталлаа.' },
   ] as NewsArticle[],
+  news_pending: [],
+  facebook_sync: DEFAULT_FACEBOOK_SYNC,
   medal_standings: [
     { name: 'Төв аймаг',    g: 3, s: 1, b: 2 },
     { name: 'Сэлэнгэ',      g: 2, s: 2, b: 1 },
@@ -546,6 +796,7 @@ export const DEFAULT_SETTINGS: SiteSettings = {
     about: true,
     sponsors: true,
   },
+  home_copy: DEFAULT_HOME_COPY,
   about: {
     subtitle: 'Монгол улсын ерөнхий боловсролын сургуулийг 1987, 1989 онд төгссөн нэгэн үеийнхний албан ёсны тавдугаар спорт наадам. 21 аймгийн оролцоотой, 5 спортын төрлөөр, 2 өдрийн турш Улаанбаатар хотын "Буянт Ухаа" спорт ордонд зохион байгуулагдана.',
     facts: [
@@ -597,9 +848,14 @@ export async function getSiteSettings(): Promise<SiteSettings & { _tableExists: 
   if (!Array.isArray(result.about.values))   result.about.values   = DEFAULT_SETTINGS.about.values
   if (!Array.isArray(result.about.editions)) result.about.editions = DEFAULT_SETTINGS.about.editions
   if (!result.home_sections || typeof result.home_sections !== 'object') result.home_sections = DEFAULT_SETTINGS.home_sections
+  result.home_copy = mergeHomeCopy(result.home_copy as Partial<HomeCopy> | undefined)
   if (!Array.isArray(result.news_tags)) result.news_tags = DEFAULT_SETTINGS.news_tags
   if (!Array.isArray(result.news)) result.news = DEFAULT_SETTINGS.news
   result.news = sortNewsByDate(result.news.map(normalizeNewsArticle))
+  if (!Array.isArray(result.news_pending)) result.news_pending = DEFAULT_SETTINGS.news_pending
+  if (!result.facebook_sync || typeof result.facebook_sync !== 'object') {
+    result.facebook_sync = { ...DEFAULT_FACEBOOK_SYNC }
+  }
   if (!Array.isArray(result.medal_standings)) result.medal_standings = DEFAULT_SETTINGS.medal_standings
   if (!Array.isArray(result.schedule)) result.schedule = DEFAULT_SETTINGS.schedule
   for (const day of result.schedule) {

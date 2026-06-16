@@ -15,15 +15,14 @@ const CHESS_SVG     = `url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.
 const TENNIS_SVG    = `url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><circle cx=%228%22 cy=%2210%22 r=%225%22 fill=%22none%22 stroke=%22black%22 stroke-width=%221.5%22/><path d=%22M11 13l8 8M17 19l3 3%22 fill=%22none%22 stroke=%22black%22 stroke-width=%221.5%22 stroke-linecap=%22round%22/></svg>')`
 const DARTS_SVG     = `url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22><circle cx=%2212%22 cy=%2212%22 r=%2210%22 fill=%22none%22 stroke=%22black%22 stroke-width=%221.5%22/><circle cx=%2212%22 cy=%2212%22 r=%226%22 fill=%22none%22 stroke=%22black%22 stroke-width=%221.5%22/><circle cx=%2212%22 cy=%2212%22 r=%222%22 fill=%22black%22/></svg>')`
 
-const SPORTS = [
-  { num: '01', cat: '♂ Эрэгтэй', name: 'Сагсан\nбөмбөг',    mask: BASKETBALL_SVG, href: '/groups#771904c0-f0c9-4b53-a631-f82cecfde598' },
-  { num: '02', cat: '♀ Эмэгтэй', name: 'Сагсан\nбөмбөг',    mask: BASKETBALL_SVG, href: '/groups#875a61c1-6c97-4dca-96a0-dd0bcf9b2cc3' },
-  { num: '03', cat: '♂ Эрэгтэй', name: 'Волейбол',           mask: VOLLEYBALL_SVG, href: '/groups#11a8b935-744d-4032-8280-6ef97ad5a9db' },
-  { num: '04', cat: '♀ Эмэгтэй', name: 'Волейбол',           mask: VOLLEYBALL_SVG, href: '/groups#92dfbd70-204d-4293-985f-b2e49e35c526' },
-  { num: '05', cat: 'Баг',        name: 'Ширээний\nтеннис',   mask: TENNIS_SVG,     href: '/groups#094da6e9-660d-4646-b149-7a4cbd8f55a0' },
-  { num: '06', cat: 'Баг',        name: 'Дартс',              mask: DARTS_SVG,      href: '/groups#b0b7ca49-82fb-440f-8e9a-19fdbf1f6d11' },
-  { num: '07', cat: 'Баг',        name: 'Шатар',              mask: CHESS_SVG,      href: '/groups#4b254cc4-16e9-430d-9bf2-0257178db95c' },
-]
+function sportMask(name: string): string {
+  if (name.includes('Сагсан')) return BASKETBALL_SVG
+  if (name.includes('Волейбол')) return VOLLEYBALL_SVG
+  if (name.includes('теннис')) return TENNIS_SVG
+  if (name.includes('Дартс')) return DARTS_SVG
+  if (name.includes('Шатар')) return CHESS_SVG
+  return BASKETBALL_SVG
+}
 
 
 function sportShortLabel(name: string): string {
@@ -68,6 +67,7 @@ export default async function HomePage() {
   const ribbonItems: any[] = [...(liveRibbon ?? []), ...(doneRibbon ?? [])]
   const g = settings.general
   const h = settings.hero
+  const cp = settings.home_copy
   const sec = settings.home_sections
   const newsArticles = settings.news
   const featureArticle = newsArticles.find(a => a.feature) ?? newsArticles[0]
@@ -87,8 +87,8 @@ export default async function HomePage() {
               <div className="hero-edition">
                 <span className="roman">{g.edition}</span>
                 <div className="hero-edition-text">
-                  <div className="l1">{g.edition} Edition · {g.year}</div>
-                  <div className="l2">Спорт Наадам</div>
+                  <div className="l1">{g.edition} {cp.hero.editionSuffix} · {g.year}</div>
+                  <div className="l2">{cp.hero.eventType}</div>
                 </div>
               </div>
 
@@ -107,10 +107,10 @@ export default async function HomePage() {
 
               <div className="hero-meta-row">
                 {[
-                  { label: 'Огноо',  value: g.dateDisplay   },
-                  { label: 'Хот',    value: 'Улаанбаатар'   },
-                  { label: 'Заал',   value: g.venue          },
-                  { label: 'Багууд', value: g.teamCount + ' аймаг' },
+                  { label: cp.hero.metaDateLabel,  value: g.dateDisplay },
+                  { label: cp.hero.metaCityLabel,  value: cp.hero.city },
+                  { label: cp.hero.metaVenueLabel, value: g.venue },
+                  { label: cp.hero.metaTeamsLabel, value: `${g.teamCount} ${cp.hero.teamsUnit}` },
                 ].map(({ label, value }) => (
                   <div key={label} className="hero-meta-cell">
                     <div className="hero-meta-label">{label}</div>
@@ -121,10 +121,10 @@ export default async function HomePage() {
 
               <div className="hero-cta-row">
                 <Link href="/schedule" className="btn-primary">
-                  Хуваарь үзэх <span className="btn-arrow">→</span>
+                  {cp.hero.ctaSchedule} <span className="btn-arrow">→</span>
                 </Link>
                 <Link href="/live" className="btn-ghost">
-                  Шууд дамжуулалт <span className="btn-arrow">▷</span>
+                  {cp.hero.ctaLive} <span className="btn-arrow">▷</span>
                 </Link>
               </div>
             </div>
@@ -132,19 +132,15 @@ export default async function HomePage() {
             <div className="hero-right">
               <div className="countdown-card">
                 <div className="countdown-eyebrow">
-                  <span className="eyebrow">Нээлтэд үлдсэн</span>
-                  <span className="mono" style={{ fontSize: 11, color: 'var(--fog)' }}>06.11 · 13:00</span>
+                  <span className="eyebrow">{cp.countdown.eyebrow}</span>
                 </div>
-                <Countdown />
-                <div className="next-event">
-                  <div className="next-event-row">
-                    <span className="next-event-l">Нээлтийн үйл ажиллагаа</span>
-                    <span className="next-event-v">13:00 — 14:00</span>
-                  </div>
-                  <div className="next-event-detail">
-                    2026.06.11 Пүрэв · "Буянт Ухаа" спорт ордон
-                  </div>
-                </div>
+                <Countdown
+                  targetIso={cp.countdown.targetIso}
+                  dayLabel={cp.countdown.dayLabel}
+                  hourLabel={cp.countdown.hourLabel}
+                  minLabel={cp.countdown.minLabel}
+                  secLabel={cp.countdown.secLabel}
+                />
               </div>
             </div>
 
@@ -158,11 +154,11 @@ export default async function HomePage() {
       <RibbonRefresher />
       <div className="ribbon">
         <div className="wrap-wide ribbon-row">
-          <Link href="/live" className="ribbon-tag" style={{ textDecoration: 'none' }}>Шууд</Link>
+          <Link href="/live" className="ribbon-tag" style={{ textDecoration: 'none' }}>{cp.ribbon.tag}</Link>
           <div className="ribbon-feed">
             {ribbonItems.length === 0 && (
               <div className="ribbon-item">
-                <span className="ribbon-sport" style={{ color: 'var(--fog)' }}>Тоглолт байхгүй байна</span>
+                <span className="ribbon-sport" style={{ color: 'var(--fog)' }}>{cp.ribbon.emptyMsg}</span>
               </div>
             )}
             {ribbonItems.map((m: any) => {
@@ -217,12 +213,12 @@ export default async function HomePage() {
         <div className="wrap-wide">
           <div className="section-header">
             <div>
-              <span className="eyebrow">Сүүлийн мэдээ</span>
+              <span className="eyebrow">{cp.news.eyebrow}</span>
               <h2 className="section-title">
-                Онцлох <span className="gold">мэдээ</span>
+                {cp.news.titlePrefix} <span className="gold">{cp.news.titleGold}</span>
               </h2>
             </div>
-            <Link href="/news" className="section-action">Бүх мэдээ →</Link>
+            <Link href="/news" className="section-action">{cp.news.action}</Link>
           </div>
 
           {featureArticle && (
@@ -249,7 +245,7 @@ export default async function HomePage() {
                       fontSize: 11, fontWeight: 600, padding: '8px 20px',
                       background: 'var(--gold)', color: 'var(--ink)',
                     }}>
-                      Дэлгэрэнгүй →
+                      {cp.news.readMore}
                     </span>
                   </div>
                 </div>
@@ -289,28 +285,26 @@ export default async function HomePage() {
         <div className="wrap-wide">
           <div className="section-header">
             <div>
-              <span className="eyebrow">5 төрөл · 7 ангилал</span>
+              <span className="eyebrow">{cp.sports.eyebrow}</span>
               <h2 className="section-title">
-                Спортын <span className="gold">төрлүүд</span>
+                {cp.sports.titlePrefix} <span className="gold">{cp.sports.titleGold}</span>
               </h2>
             </div>
-            <Link href="/groups" className="section-action">Хэсгийн хуваарь →</Link>
+            <Link href="/groups" className="section-action">{cp.sports.action}</Link>
           </div>
 
           <div className="sports-grid sports-grid-7">
-            {SPORTS.map((s) => (
-              <Link key={s.num} href={s.href} className="sport-card">
+            {cp.sports.cards.map((s) => (
+              <Link key={s.id} href={s.href} className="sport-card">
                 <div className="sport-head-row">
                   <span className="sport-num">{s.num}</span>
                   <span className="sport-cat">{s.cat}</span>
                 </div>
                 <div className="sport-icon-frame">
-                  <div className="sport-pictogram" style={{ WebkitMaskImage: s.mask, maskImage: s.mask }} />
+                  <div className="sport-pictogram" style={{ WebkitMaskImage: sportMask(s.name), maskImage: sportMask(s.name) }} />
                 </div>
                 <div className="sport-name" style={{ whiteSpace: 'pre-line' }}>{s.name}</div>
-                <div className="sport-desc">
-                  Хэсгийн хуваарь болон нугалааны дүнг энд дарж шууд харна уу →
-                </div>
+                <div className="sport-desc">{s.desc}</div>
               </Link>
             ))}
           </div>
@@ -324,12 +318,12 @@ export default async function HomePage() {
         <div className="wrap-wide">
           <div className="section-header">
             <div>
-              <span className="eyebrow">2026.06.11 — 2026.06.13</span>
+              <span className="eyebrow">{cp.schedule.eyebrow}</span>
               <h2 className="section-title">
-                Наадмын <span className="gold">хуваарь</span>
+                {cp.schedule.titlePrefix} <span className="gold">{cp.schedule.titleGold}</span>
               </h2>
             </div>
-            <Link href="/schedule" className="section-action">Дэлгэрэнгүй →</Link>
+            <Link href="/schedule" className="section-action">{cp.schedule.action}</Link>
           </div>
 
           <div className="schedule-grid">
@@ -343,7 +337,7 @@ export default async function HomePage() {
                   </div>
                 </div>
                 <div className="day-events-section">
-                  <div className="day-section-title">Үндсэн тэмцээн</div>
+                  <div className="day-section-title">{cp.schedule.mainLabel}</div>
                   <div className="day-events">
                     {day.main.map((ev, i) => (
                       <div key={i} className={`day-event${ev.hilight ? ' hilight' : ''}`}>
@@ -355,7 +349,7 @@ export default async function HomePage() {
                       </div>
                     ))}
                   </div>
-                  <div className="day-section-title">Хөгжөөн дэмжигчдэд</div>
+                  <div className="day-section-title">{cp.schedule.extraLabel}</div>
                   <div className="day-events">
                     {day.extra.map((ev, i) => (
                       <div key={i} className="day-event">
@@ -381,20 +375,20 @@ export default async function HomePage() {
         <div className="wrap-wide">
           <div className="section-header">
             <div>
-              <span className="eyebrow">Medal Standings · Live</span>
+              <span className="eyebrow">{cp.medals.eyebrow}</span>
               <h2 className="section-title">
-                Медалийн <span className="gold">хүснэгт</span>
+                {cp.medals.titlePrefix} <span className="gold">{cp.medals.titleGold}</span>
               </h2>
             </div>
-            <Link href="/medals" className="section-action">Бүх хүснэгт →</Link>
+            <Link href="/medals" className="section-action">{cp.medals.action}</Link>
           </div>
 
           <div style={{ overflowX: 'auto' }}>
             <table className="medal-table" style={{ width: '100%', minWidth: 640 }}>
               <thead>
                 <tr>
-                  <th style={{ width: 44 }}>Эрэмбэ</th>
-                  <th className="left">Аймаг</th>
+                  <th style={{ width: 44 }}>{cp.medals.colRank}</th>
+                  <th className="left">{cp.medals.colAimag}</th>
                   {medalSportList.map(s => (
                     <th key={s.id} title={s.name} style={{
                       width: 38, padding: '4px 2px', fontSize: 10,
@@ -406,10 +400,10 @@ export default async function HomePage() {
                       {sportShortLabel(s.name)}
                     </th>
                   ))}
-                  <th>Алт</th>
-                  <th>Мөнгө</th>
-                  <th>Хүрэл</th>
-                  <th>Нийт</th>
+                  <th>{cp.medals.colGold}</th>
+                  <th>{cp.medals.colSilver}</th>
+                  <th>{cp.medals.colBronze}</th>
+                  <th>{cp.medals.colTotal}</th>
                 </tr>
               </thead>
               <tbody>
@@ -474,12 +468,12 @@ export default async function HomePage() {
         <div className="wrap-wide">
           <div className="section-header">
             <div>
-              <span className="eyebrow">Organizer Provinces · 2026</span>
+              <span className="eyebrow">{cp.hostAimags.eyebrow}</span>
               <h2 className="section-title">
-                Зохион байгуулагч <span className="gold">аймгууд</span>
+                {cp.hostAimags.titlePrefix} <span className="gold">{cp.hostAimags.titleGold}</span>
               </h2>
             </div>
-            <Link href="/about" className="section-action">Наадмын түүх →</Link>
+            <Link href="/about" className="section-action">{cp.hostAimags.action}</Link>
           </div>
 
           <div className="host-grid">
@@ -522,12 +516,12 @@ export default async function HomePage() {
         <div className="wrap-wide">
           <div className="section-header">
             <div>
-              <span className="eyebrow">About the Games</span>
+              <span className="eyebrow">{cp.about.eyebrow}</span>
               <h2 className="section-title">
-                Наадмын <span className="gold">тухай</span>
+                {cp.about.titlePrefix} <span className="gold">{cp.about.titleGold}</span>
               </h2>
             </div>
-            <Link href="/about" className="section-action" style={{ color: 'var(--gold-dark)' }}>Дэлгэрэнгүй →</Link>
+            <Link href="/about" className="section-action" style={{ color: 'var(--gold-dark)' }}>{cp.about.action}</Link>
           </div>
 
           <div className="facts-grid">
@@ -551,9 +545,9 @@ export default async function HomePage() {
           {/* Edition history — /history хуудастай холбоотой */}
           <div style={{ marginTop: 56, borderTop: '1px solid rgba(11,20,38,.12)', paddingTop: 40 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-              <p className="fact-num" style={{ margin: 0 }}>Наадмын түүх</p>
+              <p className="fact-num" style={{ margin: 0 }}>{cp.about.historyTitle}</p>
               <Link href="/history" style={{ fontSize: 12, color: 'var(--gold-dark)', fontWeight: 600, textDecoration: 'none' }}>
-                Дэлгэрэнгүй →
+                {cp.about.historyLink}
               </Link>
             </div>
             <div style={{ display: 'flex', gap: 0, position: 'relative' }}>
@@ -595,7 +589,7 @@ export default async function HomePage() {
                     </div>
                     <div style={{ fontSize: 11, color: 'rgba(11,20,38,.45)', marginTop: 2 }}>{ed.city}</div>
                     <div style={{ fontSize: 10, color: 'rgba(11,20,38,.4)', fontFamily: 'var(--mono)', marginTop: 3 }}>
-                      {ed.sports} төрөл
+                      {ed.sports} {cp.about.sportsSuffix}
                     </div>
                     {ed.current && (
                       <div style={{
@@ -604,7 +598,7 @@ export default async function HomePage() {
                         background: 'rgba(166,127,52,.1)', border: '1px solid rgba(166,127,52,.3)',
                         padding: '2px 8px', borderRadius: 2,
                       }}>
-                        ОДООГИЙН
+                        {cp.about.currentBadge}
                       </div>
                     )}
                   </div>
@@ -621,16 +615,16 @@ export default async function HomePage() {
       {sec.sponsors !== false && <section className="sponsors">
         <div className="wrap-wide">
           <div className="sponsors-head">
-            <span className="eyebrow">Partners &amp; Sponsors</span>
+            <span className="eyebrow">{cp.sponsors.eyebrow}</span>
             <h2 className="section-title" style={{ fontSize: 32, marginTop: 8 }}>
-              Ивээн <span className="gold">тэтгэгчид</span>
+              {cp.sponsors.titlePrefix} <span className="gold">{cp.sponsors.titleGold}</span>
             </h2>
           </div>
           <div className="sponsors-tiers">
             {(['platinum', 'gold', 'silver'] as const).map(tier => {
               const tierSponsors = settings.sponsors.filter(s => s.tier === tier)
               if (tierSponsors.length === 0) return null
-              const label = tier === 'platinum' ? 'Алтан\nгишүүн' : tier === 'gold' ? 'Дэмжигч' : 'Хамтрагч'
+              const label = tier === 'platinum' ? cp.sponsors.tierPlatinum : tier === 'gold' ? cp.sponsors.tierGold : cp.sponsors.tierSilver
               return (
                 <div key={tier} className={`tier-row ${tier}`}>
                   <span className="tier-label" style={{ whiteSpace: 'pre-line' }}>{label}</span>

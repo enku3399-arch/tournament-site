@@ -1,16 +1,17 @@
 'use client'
 
 import { useState, useCallback, useRef, useEffect } from 'react'
-import type { SiteSettings, NavLink, Sponsor, StatItem, HostAimag, SiteAbout, AboutFact, AboutValue, AboutEdition, HomeSections, NewsArticle, NewsTag, MedalRow, ScheduleDay, ScheduleEvent, FooterNav, ScoringLink, SportOverride, ManualSportResult, ManualPointTier } from '@/lib/site-settings'
-import { sortNewsByDate, normalizeNewsArticle, getArticleImages } from '@/lib/site-settings'
+import type { SiteSettings, NavLink, Sponsor, StatItem, HostAimag, SiteAbout, AboutFact, AboutValue, AboutEdition, HomeSections, HomeCopy, HomeSportCard, NewsArticle, NewsTag, PendingNewsItem, FacebookSyncSettings, MedalRow, ScheduleDay, ScheduleEvent, FooterNav, ScoringLink, SportOverride, ManualSportResult, ManualPointTier } from '@/lib/site-settings'
+import { sortNewsByDate, normalizeNewsArticle, getArticleImages, DEFAULT_FACEBOOK_SYNC } from '@/lib/site-settings'
 import { DEFAULT_POINT_TIERS, DEFAULT_LOW_TIERS } from '@/lib/site-settings'
 import type { AimagStanding } from '@/lib/medal-calc'
 
-type Tab = 'general' | 'hero' | 'nav' | 'sponsors' | 'stats' | 'media' | 'aimags' | 'about' | 'schedule' | 'footer' | 'sections' | 'news' | 'medals' | 'scoring' | 'history'
+type Tab = 'general' | 'hero' | 'nav' | 'sponsors' | 'stats' | 'media' | 'aimags' | 'about' | 'schedule' | 'footer' | 'sections' | 'home_copy' | 'news' | 'medals' | 'scoring' | 'history'
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'general',  label: 'Ерөнхий',         icon: '⚙️' },
   { id: 'hero',     label: 'Hero',             icon: '🏔' },
+  { id: 'home_copy', label: 'Нүүр текст',      icon: '✏️' },
   { id: 'nav',      label: 'Навигац',           icon: '📋' },
   { id: 'sponsors', label: 'Спонсор',           icon: '🤝' },
   { id: 'stats',    label: 'Тоо баримт',        icon: '📊' },
@@ -105,6 +106,8 @@ function GeneralTab({ data, onSave }: { data: SiteSettings['general']; onSave: (
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <Field label="Сайтын нэр" value={form.siteName} onChange={set('siteName')} />
         <Field label="Уриа (motto)" value={form.motto} onChange={set('motto')} />
+        <Field label="Наадмын дугаар (edition)" value={form.edition} onChange={set('edition')} hint='Жишээ: "V"' />
+        <Field label="Он (year)" value={form.year} onChange={set('year')} hint='Жишээ: "2026"' />
         <Field label="Гарчигт огноо" value={form.dateDisplay} onChange={set('dateDisplay')} hint='Жишээ: "06.11 — 06.13"' />
         <Field label="Заал (товч)" value={form.venue} onChange={set('venue')} hint='Жишээ: "Буянт Ухаа"' />
         <Field label="Заал (дэлгэрэнгүй)" value={form.venueAddress} onChange={set('venueAddress')} hint='"Буянт Ухаа" спорт ордон' />
@@ -1166,14 +1169,26 @@ function FooterTab({ data, onSave }: { data: FooterNav; onSave: (v: FooterNav) =
 
 /* ── NEWS TAB ────────────────────────────────────────────────────────────── */
 function NewsTab({
-  data, tags: initialTags, onSave, onSaveTags,
+  data, tags: initialTags, pending: initialPending, facebookSync: initialFbSync,
+  onSave, onSaveTags, onPendingChange, onFacebookSyncChange,
 }: {
   data: NewsArticle[]
   tags: NewsTag[]
+  pending: PendingNewsItem[]
+  facebookSync: FacebookSyncSettings
   onSave: (v: NewsArticle[]) => Promise<void>
   onSaveTags: (v: NewsTag[]) => Promise<void>
+  onPendingChange: (v: PendingNewsItem[]) => void
+  onFacebookSyncChange: (v: FacebookSyncSettings) => void
 }) {
   const [articles, setArticles] = useState<NewsArticle[]>(() => sortNewsByDate(data.map(normalizeNewsArticle)))
+  const [pending, setPending] = useState<PendingNewsItem[]>(initialPending)
+  const [fbSync, setFbSync] = useState<FacebookSyncSettings>(initialFbSync)
+  const [fbOpen, setFbOpen] = useState(false)
+  const [syncing, setSyncing] = useState(false)
+  const [syncMsg, setSyncMsg] = useState('')
+  const [approvingId, setApprovingId] = useState<string | null>(null)
+  const [pendingOpen, setPendingOpen] = useState<string | null>(null)
   const [tags, setTags] = useState<NewsTag[]>(initialTags)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -1198,6 +1213,83 @@ function NewsTab({
     try { await onSaveTags(tags); setTagSaved(true); setTimeout(() => setTagSaved(false), 3000) }
     catch { /* error shown globally */ }
     setTagSaving(false)
+  }
+
+  function updatePending(id: string, field: keyof PendingNewsItem, val: string | string[]) {
+    setPending(prev => prev.map(p => p.id === id ? { ...p, [field]: val } : p))
+  }
+
+  async function runSync() {
+    setSyncing(true); setSyncMsg('')
+    try {
+      const res = await fetch('/api/admin/news-pending', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'sync' }),
+      })
+      const json = await res.json()
+      if (json.pending) {
+        setPending(json.pending)
+        onPendingChange(json.pending)
+      }
+      if (json.error) setSyncMsg(`⚠️ ${json.error}`)
+      else setSyncMsg(`✓ ${json.newCount ?? 0} шинэ мэдээ олдлоо`)
+      setTimeout(() => setSyncMsg(''), 6000)
+    } catch {
+      setSyncMsg('⚠️ Синк хийхэд алдаа гарлаа')
+    }
+    setSyncing(false)
+  }
+
+  async function saveFbSync() {
+    await fetch('/api/admin/news-pending', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'save_sync_settings', settings: fbSync }),
+    })
+    onFacebookSyncChange(fbSync)
+    setSyncMsg('✓ Facebook тохиргоо хадгалагдлаа')
+    setTimeout(() => setSyncMsg(''), 3000)
+  }
+
+  async function approvePending(id: string) {
+    setApprovingId(id)
+    const item = pending.find(p => p.id === id)
+    try {
+      const res = await fetch('/api/admin/news-pending', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ action: 'approve', id, edits: item }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error ?? 'Алдаа')
+      if (json.news) {
+        setArticles(sortNewsByDate(json.news.map(normalizeNewsArticle)))
+        await onSave(json.news)
+      }
+      if (json.pending) {
+        setPending(json.pending)
+        onPendingChange(json.pending)
+      }
+      if (pendingOpen === id) setPendingOpen(null)
+    } catch (e: unknown) {
+      alert('Зөвшөөрөхөд алдаа: ' + (e as Error).message)
+    }
+    setApprovingId(null)
+  }
+
+  async function rejectPending(id: string) {
+    const res = await fetch('/api/admin/news-pending', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ action: 'reject', id }),
+    })
+    const json = await res.json()
+    if (json.pending) {
+      setPending(json.pending)
+      onPendingChange(json.pending)
+    }
+    if (pendingOpen === id) setPendingOpen(null)
   }
 
   function update(id: string, field: keyof NewsArticle, val: string | boolean | string[]) {
@@ -1298,7 +1390,137 @@ function NewsTab({
         )}
       </div>
 
-      <p className="text-xs text-muted">Мэдээний хуудас болон нүүр хуудасны мэдээ секторт гарна. Огноогоор шинэ нь эхэнд автоматаар эрэмбэлэгдэнэ. &quot;Онцлох&quot; тэмдэглэсэн нэг нийтлэл том карт болон харагдана.</p>
+      <p className="text-xs text-muted">Мэдээний хуудас болон нүүр хуудасны мэдээ секторт гарна. Огноогоор шинэ нь эхэнд автоматаар эрэмбэлэгдэнэ. Facebook-оос ирсэн мэдээ эхлээд зөвшөөрөл хүлээнэ.</p>
+
+      {/* Facebook sync settings */}
+      <div className="rounded-xl border border-border bg-surface-2 overflow-hidden">
+        <button type="button" onClick={() => setFbOpen(o => !o)}
+          className="flex w-full items-center gap-2 px-4 py-3 text-sm">
+          <span className="flex-1 font-semibold text-left text-foreground">
+            🔵 Facebook синк · {fbSync.enabled ? 'Идэвхтэй' : 'Идэвхгүй'}
+            {pending.length > 0 && <span className="ml-2 text-live">({pending.length} хүлээгдэж буй)</span>}
+          </span>
+          <span className="text-[10px] text-muted">{fbOpen ? '▲' : '▼'}</span>
+        </button>
+        {fbOpen && (
+          <div className="border-t border-border px-4 pb-4 pt-3 space-y-3 bg-surface">
+            <p className="text-[11px] text-muted/80">
+              Group/Page ID + Access Token оруулна. 15 минут тутамд автоматаар шалгана.
+              Private group-д API ажиллахгүй бол Page эсвэл гараар нэмнэ.
+            </p>
+            <label className="flex items-center gap-3 cursor-pointer">
+              <input type="checkbox" checked={fbSync.enabled}
+                onChange={e => setFbSync(s => ({ ...s, enabled: e.target.checked }))}
+                className="accent-primary w-4 h-4" />
+              <span className="text-sm">Facebook синк идэвхжүүлэх</span>
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold text-muted uppercase tracking-wider">Эх үүсвэр</label>
+                <select value={fbSync.sourceType}
+                  onChange={e => setFbSync(s => ({ ...s, sourceType: e.target.value as 'group' | 'page' }))}
+                  className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm">
+                  <option value="group">Facebook Group</option>
+                  <option value="page">Facebook Page</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="block text-xs font-semibold text-muted uppercase tracking-wider">Group/Page ID</label>
+                <input value={fbSync.sourceId}
+                  onChange={e => setFbSync(s => ({ ...s, sourceId: e.target.value }))}
+                  placeholder="1234567890"
+                  className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm font-mono" />
+              </div>
+            </div>
+            <div className="space-y-1">
+              <label className="block text-xs font-semibold text-muted uppercase tracking-wider">Access Token</label>
+              <input type="password" value={fbSync.accessToken}
+                onChange={e => setFbSync(s => ({ ...s, accessToken: e.target.value }))}
+                placeholder="EAAxxxx..."
+                className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm font-mono" />
+            </div>
+            {fbSync.lastSyncAt && (
+              <p className="text-[11px] text-muted/70">
+                Сүүлд шалгасан: {new Date(fbSync.lastSyncAt).toLocaleString('mn-MN')}
+                {typeof fbSync.lastNewCount === 'number' && ` · ${fbSync.lastNewCount} шинэ`}
+                {fbSync.lastSyncError && <span className="text-danger block mt-1">{fbSync.lastSyncError}</span>}
+              </p>
+            )}
+            <div className="flex flex-wrap gap-2">
+              <button type="button" onClick={saveFbSync}
+                className="rounded-lg bg-primary/20 text-primary border border-primary/40 px-4 py-1.5 text-xs font-semibold hover:bg-primary/30">
+                💾 Тохиргоо хадгалах
+              </button>
+              <button type="button" onClick={runSync} disabled={syncing}
+                className="rounded-lg bg-live/20 text-live border border-live/40 px-4 py-1.5 text-xs font-semibold hover:bg-live/30 disabled:opacity-50">
+                {syncing ? '⏳ Шалгаж байна...' : '🔄 Одоо шалгах'}
+              </button>
+            </div>
+            {syncMsg && <p className="text-xs text-muted">{syncMsg}</p>}
+          </div>
+        )}
+      </div>
+
+      {/* Pending approval queue */}
+      {pending.length > 0 && (
+        <div className="rounded-xl border border-live/40 bg-live/5 overflow-hidden">
+          <div className="px-4 py-3 border-b border-live/20">
+            <h3 className="text-sm font-bold text-live">⏳ Зөвшөөрөл хүлээж буй · {pending.length}</h3>
+            <p className="text-[11px] text-muted mt-1">Шалгаад засварлаж, зөвшөөрсний дараа нийтлэгдэнэ</p>
+          </div>
+          <div className="divide-y divide-border/50">
+            {pending.map(p => (
+              <div key={p.id} className="px-4 py-3">
+                <div className="flex items-start gap-3">
+                  <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setPendingOpen(pendingOpen === p.id ? null : p.id)}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-primary/20 text-primary">FB</span>
+                      <span className="text-xs text-muted">{p.date} · {p.author}</span>
+                    </div>
+                    <p className="text-sm font-semibold truncate">{p.title}</p>
+                    {p.excerpt && <p className="text-xs text-muted line-clamp-2 mt-1">{p.excerpt}</p>}
+                  </div>
+                  <div className="flex flex-col gap-1 shrink-0">
+                    <button type="button" onClick={() => approvePending(p.id)} disabled={approvingId === p.id}
+                      className="rounded bg-live/20 text-live border border-live/40 px-3 py-1 text-xs font-semibold hover:bg-live/30 disabled:opacity-50">
+                      {approvingId === p.id ? '...' : '✓ Зөвшөөрөх'}
+                    </button>
+                    <button type="button" onClick={() => rejectPending(p.id)}
+                      className="rounded border border-border px-3 py-1 text-xs text-muted hover:text-danger">
+                      ✕ Татгалзах
+                    </button>
+                  </div>
+                </div>
+                {pendingOpen === p.id && (
+                  <div className="mt-3 pt-3 border-t border-border space-y-2">
+                    <input value={p.title} onChange={e => updatePending(p.id, 'title', e.target.value)}
+                      className="w-full rounded border border-border bg-surface-2 px-3 py-2 text-sm" placeholder="Гарчиг" />
+                    <textarea value={p.excerpt} onChange={e => updatePending(p.id, 'excerpt', e.target.value)}
+                      rows={2} className="w-full rounded border border-border bg-surface-2 px-3 py-2 text-sm resize-none" placeholder="Товч" />
+                    <textarea value={p.content ?? ''} onChange={e => updatePending(p.id, 'content', e.target.value)}
+                      rows={4} className="w-full rounded border border-border bg-surface-2 px-3 py-2 text-sm resize-y" placeholder="Дэлгэрэнгүй" />
+                    {p.imagePaths && p.imagePaths.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {p.imagePaths.map(src => (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img key={src} src={src} alt="" className="h-14 object-cover rounded border border-border" />
+                        ))}
+                      </div>
+                    )}
+                    {p.sourceUrl && (
+                      <a href={p.sourceUrl} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline">
+                        Facebook дээр харах →
+                      </a>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <p className="text-xs text-muted">"Онцлох" тэмдэглэсэн нэг нийтлэл том карт болон харагдана.</p>
 
       <div className="space-y-2">
         {articles.map((a) => (
@@ -2303,6 +2525,214 @@ function ScoringLinksTab({ data, onSave }: { data: ScoringLink[]; onSave: (v: Sc
   )
 }
 
+/* ── HOME COPY TAB ───────────────────────────────────────────────────────── */
+function HomeCopyTab({ data, onSave }: { data: HomeCopy; onSave: (v: HomeCopy) => Promise<void> }) {
+  const [form, setForm] = useState<HomeCopy>(data)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [openSection, setOpenSection] = useState<string>('hero')
+
+  function setHero<K extends keyof HomeCopy['hero']>(k: K, v: HomeCopy['hero'][K]) {
+    setForm(f => ({ ...f, hero: { ...f.hero, [k]: v } }))
+  }
+  function setCountdown<K extends keyof HomeCopy['countdown']>(k: K, v: HomeCopy['countdown'][K]) {
+    setForm(f => ({ ...f, countdown: { ...f.countdown, [k]: v } }))
+  }
+  function setSection<K extends keyof HomeCopy>(
+    section: K,
+    patch: Partial<HomeCopy[K]>,
+  ) {
+    setForm(f => ({ ...f, [section]: { ...(f[section] as object), ...patch } }))
+  }
+  function updateSportCard(i: number, field: keyof HomeSportCard, val: string) {
+    setForm(f => ({
+      ...f,
+      sports: {
+        ...f.sports,
+        cards: f.sports.cards.map((c, idx) => idx === i ? { ...c, [field]: val } : c),
+      },
+    }))
+  }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    setSaving(true); setSaved(false)
+    try {
+      await onSave(form)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+    } catch { /* global */ }
+    setSaving(false)
+  }
+
+  const sections: { id: string; label: string; content: React.ReactNode }[] = [
+    {
+      id: 'hero', label: '🏔 Hero + товчлуур',
+      content: (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Field label="Edition suffix" value={form.hero.editionSuffix} onChange={v => setHero('editionSuffix', v)} hint='"Edition"' />
+          <Field label="Төрөл нэр" value={form.hero.eventType} onChange={v => setHero('eventType', v)} hint="Спорт Наадам" />
+          <Field label="Хот" value={form.hero.city} onChange={v => setHero('city', v)} />
+          <Field label="Багийн нэгж" value={form.hero.teamsUnit} onChange={v => setHero('teamsUnit', v)} hint="аймаг" />
+          <Field label="Meta: Огноо" value={form.hero.metaDateLabel} onChange={v => setHero('metaDateLabel', v)} />
+          <Field label="Meta: Хот" value={form.hero.metaCityLabel} onChange={v => setHero('metaCityLabel', v)} />
+          <Field label="Meta: Заал" value={form.hero.metaVenueLabel} onChange={v => setHero('metaVenueLabel', v)} />
+          <Field label="Meta: Багууд" value={form.hero.metaTeamsLabel} onChange={v => setHero('metaTeamsLabel', v)} />
+          <Field label="Товч: Хуваарь" value={form.hero.ctaSchedule} onChange={v => setHero('ctaSchedule', v)} />
+          <Field label="Товч: Шууд" value={form.hero.ctaLive} onChange={v => setHero('ctaLive', v)} />
+        </div>
+      ),
+    },
+    {
+      id: 'countdown', label: '⏱ Тоолуур',
+      content: (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Field label="Гарчиг" value={form.countdown.eyebrow} onChange={v => setCountdown('eyebrow', v)} />
+          <Field label="Эхлэх цаг (ISO)" value={form.countdown.targetIso} onChange={v => setCountdown('targetIso', v)} hint="2026-06-11T13:00:00+08:00" />
+          <Field label="Хоног" value={form.countdown.dayLabel} onChange={v => setCountdown('dayLabel', v)} />
+          <Field label="Цаг" value={form.countdown.hourLabel} onChange={v => setCountdown('hourLabel', v)} />
+          <Field label="Минут" value={form.countdown.minLabel} onChange={v => setCountdown('minLabel', v)} />
+          <Field label="Секунд" value={form.countdown.secLabel} onChange={v => setCountdown('secLabel', v)} />
+        </div>
+      ),
+    },
+    {
+      id: 'ribbon', label: '📡 Шууд тууз',
+      content: (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Field label="Шууд таг" value={form.ribbon.tag} onChange={v => setSection('ribbon', { tag: v })} />
+          <Field label="Хоосон мессеж" value={form.ribbon.emptyMsg} onChange={v => setSection('ribbon', { emptyMsg: v })} />
+        </div>
+      ),
+    },
+    {
+      id: 'news', label: '📰 Мэдээ хэсэг',
+      content: (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Field label="Eyebrow" value={form.news.eyebrow} onChange={v => setSection('news', { eyebrow: v })} />
+          <Field label="Гарчиг (эхлэл)" value={form.news.titlePrefix} onChange={v => setSection('news', { titlePrefix: v })} />
+          <Field label="Гарчиг (шар)" value={form.news.titleGold} onChange={v => setSection('news', { titleGold: v })} />
+          <Field label="Холбоос" value={form.news.action} onChange={v => setSection('news', { action: v })} />
+          <Field label="Дэлгэрэнгүй товч" value={form.news.readMore} onChange={v => setSection('news', { readMore: v })} />
+        </div>
+      ),
+    },
+    {
+      id: 'sports', label: '🏅 Спортын картууд',
+      content: (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Field label="Eyebrow" value={form.sports.eyebrow} onChange={v => setSection('sports', { eyebrow: v })} />
+            <Field label="Гарчиг (эхлэл)" value={form.sports.titlePrefix} onChange={v => setSection('sports', { titlePrefix: v })} />
+            <Field label="Гарчиг (шар)" value={form.sports.titleGold} onChange={v => setSection('sports', { titleGold: v })} />
+            <Field label="Холбоос" value={form.sports.action} onChange={v => setSection('sports', { action: v })} />
+          </div>
+          {form.sports.cards.map((card, i) => (
+            <div key={card.id} className="rounded-lg border border-border p-3 space-y-2 bg-surface-2">
+              <p className="text-xs font-bold text-muted">Карт #{card.num}</p>
+              <div className="grid grid-cols-2 gap-2">
+                <Field label="Дугаар" value={card.num} onChange={v => updateSportCard(i, 'num', v)} />
+                <Field label="Ангилал" value={card.cat} onChange={v => updateSportCard(i, 'cat', v)} />
+                <Field label="Нэр" value={card.name} onChange={v => updateSportCard(i, 'name', v)} type="textarea" />
+                <Field label="Холбоос" value={card.href} onChange={v => updateSportCard(i, 'href', v)} />
+              </div>
+              <Field label="Тайлбар" value={card.desc} onChange={v => updateSportCard(i, 'desc', v)} type="textarea" />
+            </div>
+          ))}
+        </div>
+      ),
+    },
+    {
+      id: 'schedule', label: '📅 Хуваарь хэсэг',
+      content: (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Field label="Eyebrow" value={form.schedule.eyebrow} onChange={v => setSection('schedule', { eyebrow: v })} />
+          <Field label="Гарчиг (эхлэл)" value={form.schedule.titlePrefix} onChange={v => setSection('schedule', { titlePrefix: v })} />
+          <Field label="Гарчиг (шар)" value={form.schedule.titleGold} onChange={v => setSection('schedule', { titleGold: v })} />
+          <Field label="Холбоос" value={form.schedule.action} onChange={v => setSection('schedule', { action: v })} />
+          <Field label="Үндсэн тэмцээн" value={form.schedule.mainLabel} onChange={v => setSection('schedule', { mainLabel: v })} />
+          <Field label="Хөгжөөн дэмжигч" value={form.schedule.extraLabel} onChange={v => setSection('schedule', { extraLabel: v })} />
+        </div>
+      ),
+    },
+    {
+      id: 'medals', label: '🏆 Медаль хэсэг',
+      content: (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Field label="Eyebrow" value={form.medals.eyebrow} onChange={v => setSection('medals', { eyebrow: v })} />
+          <Field label="Гарчиг (эхлэл)" value={form.medals.titlePrefix} onChange={v => setSection('medals', { titlePrefix: v })} />
+          <Field label="Гарчиг (шар)" value={form.medals.titleGold} onChange={v => setSection('medals', { titleGold: v })} />
+          <Field label="Холбоос" value={form.medals.action} onChange={v => setSection('medals', { action: v })} />
+          <Field label="Багана: Эрэмбэ" value={form.medals.colRank} onChange={v => setSection('medals', { colRank: v })} />
+          <Field label="Багана: Аймаг" value={form.medals.colAimag} onChange={v => setSection('medals', { colAimag: v })} />
+          <Field label="Багана: Алт" value={form.medals.colGold} onChange={v => setSection('medals', { colGold: v })} />
+          <Field label="Багана: Мөнгө" value={form.medals.colSilver} onChange={v => setSection('medals', { colSilver: v })} />
+          <Field label="Багана: Хүрэл" value={form.medals.colBronze} onChange={v => setSection('medals', { colBronze: v })} />
+          <Field label="Багана: Нийт" value={form.medals.colTotal} onChange={v => setSection('medals', { colTotal: v })} />
+        </div>
+      ),
+    },
+    {
+      id: 'host', label: '🏛 Зохион байгуулагч',
+      content: (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Field label="Eyebrow" value={form.hostAimags.eyebrow} onChange={v => setSection('hostAimags', { eyebrow: v })} />
+          <Field label="Гарчиг (эхлэл)" value={form.hostAimags.titlePrefix} onChange={v => setSection('hostAimags', { titlePrefix: v })} />
+          <Field label="Гарчиг (шар)" value={form.hostAimags.titleGold} onChange={v => setSection('hostAimags', { titleGold: v })} />
+          <Field label="Холбоос" value={form.hostAimags.action} onChange={v => setSection('hostAimags', { action: v })} />
+        </div>
+      ),
+    },
+    {
+      id: 'about', label: '📖 Тухай хэсэг',
+      content: (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Field label="Eyebrow" value={form.about.eyebrow} onChange={v => setSection('about', { eyebrow: v })} />
+          <Field label="Гарчиг (эхлэл)" value={form.about.titlePrefix} onChange={v => setSection('about', { titlePrefix: v })} />
+          <Field label="Гарчиг (шар)" value={form.about.titleGold} onChange={v => setSection('about', { titleGold: v })} />
+          <Field label="Холбоос" value={form.about.action} onChange={v => setSection('about', { action: v })} />
+          <Field label="Түүх гарчиг" value={form.about.historyTitle} onChange={v => setSection('about', { historyTitle: v })} />
+          <Field label="Түүх холбоос" value={form.about.historyLink} onChange={v => setSection('about', { historyLink: v })} />
+          <Field label="Төрөл suffix" value={form.about.sportsSuffix} onChange={v => setSection('about', { sportsSuffix: v })} />
+          <Field label="Одоогийн badge" value={form.about.currentBadge} onChange={v => setSection('about', { currentBadge: v })} />
+        </div>
+      ),
+    },
+    {
+      id: 'sponsors', label: '🤝 Спонсор хэсэг',
+      content: (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Field label="Eyebrow" value={form.sponsors.eyebrow} onChange={v => setSection('sponsors', { eyebrow: v })} />
+          <Field label="Гарчиг (эхлэл)" value={form.sponsors.titlePrefix} onChange={v => setSection('sponsors', { titlePrefix: v })} />
+          <Field label="Гарчиг (шар)" value={form.sponsors.titleGold} onChange={v => setSection('sponsors', { titleGold: v })} />
+          <Field label="Platinum тир" value={form.sponsors.tierPlatinum} onChange={v => setSection('sponsors', { tierPlatinum: v })} type="textarea" />
+          <Field label="Gold тир" value={form.sponsors.tierGold} onChange={v => setSection('sponsors', { tierGold: v })} />
+          <Field label="Silver тир" value={form.sponsors.tierSilver} onChange={v => setSection('sponsors', { tierSilver: v })} />
+        </div>
+      ),
+    },
+  ]
+
+  return (
+    <form onSubmit={submit} className="space-y-3">
+      <p className="text-xs text-muted">Нүүр хуудсын бүх гарчиг, товч, хэсгийн текстийг энд засна. Агуулга (мэдээ, хуваарь, статистик) тусад нь табуудаас.</p>
+      {sections.map(s => (
+        <div key={s.id} className="rounded-xl border border-border bg-surface-2 overflow-hidden">
+          <button type="button" onClick={() => setOpenSection(openSection === s.id ? '' : s.id)}
+            className="flex w-full items-center gap-2 px-4 py-3 text-sm font-semibold text-left">
+            <span className="flex-1">{s.label}</span>
+            <span className="text-[10px] text-muted">{openSection === s.id ? '▲' : '▼'}</span>
+          </button>
+          {openSection === s.id && (
+            <div className="border-t border-border px-4 pb-4 pt-3 bg-surface">{s.content}</div>
+          )}
+        </div>
+      ))}
+      <SaveBar saving={saving} saved={saved} />
+    </form>
+  )
+}
+
 /* ── HOME SECTIONS TAB ───────────────────────────────────────────────────── */
 const SECTION_META: { key: keyof HomeSections; label: string; desc: string }[] = [
   { key: 'stats',       label: 'Тоо баримт',                desc: '21 аймаг, 5 төрөл, 1,240+ тамирчин гэх мэт тоонууд' },
@@ -2765,6 +3195,7 @@ export function SiteCmsClient({ initialSettings, liveStandings, liveSportResults
   function tabContent() {
     if (tab === 'general')  return <GeneralTab      data={settings.general}         onSave={v => save('general', v)}        />
     if (tab === 'hero')     return <HeroTab         data={settings.hero}            onSave={v => save('hero', v)}           />
+    if (tab === 'home_copy') return <HomeCopyTab    data={settings.home_copy}       onSave={v => save('home_copy', v)}      />
     if (tab === 'nav')      return <NavTab          data={settings.nav_links}       onSave={v => save('nav_links', v)}      />
     if (tab === 'sponsors') return <SponsorsTab     data={settings.sponsors}        onSave={v => save('sponsors', v)}       />
     if (tab === 'stats')    return <StatsTab        data={settings.stats}           onSave={v => save('stats', v)}          />
@@ -2773,7 +3204,16 @@ export function SiteCmsClient({ initialSettings, liveStandings, liveSportResults
     if (tab === 'about')    return <AboutTab        data={settings.about}           onSave={v => save('about', v)}          />
     if (tab === 'schedule') return <ScheduleTab     data={settings.schedule}        onSave={v => save('schedule', v)}       />
     if (tab === 'footer')   return <FooterTab       data={settings.footer_nav}      onSave={v => save('footer_nav', v)}     />
-    if (tab === 'news')     return <NewsTab         data={settings.news} tags={settings.news_tags} onSave={v => save('news', v)} onSaveTags={v => save('news_tags', v)} />
+    if (tab === 'news')     return <NewsTab
+      data={settings.news}
+      tags={settings.news_tags}
+      pending={settings.news_pending ?? []}
+      facebookSync={settings.facebook_sync ?? DEFAULT_FACEBOOK_SYNC}
+      onSave={v => save('news', v)}
+      onSaveTags={v => save('news_tags', v)}
+      onPendingChange={v => setSettings(prev => ({ ...prev, news_pending: v }))}
+      onFacebookSyncChange={v => setSettings(prev => ({ ...prev, facebook_sync: v }))}
+    />
     if (tab === 'medals')   return <MedalsTab manualResults={settings.manual_medal_results ?? []} onSaveManual={v => save('manual_medal_results', v)} liveStandings={liveStandings} liveSportResults={liveSportResults} />
     if (tab === 'scoring')  return <ScoringLinksTab data={settings.scoring_links}   onSave={v => save('scoring_links', v)}  />
     if (tab === 'sections') return <HomeSectionsTab data={settings.home_sections}   onSave={v => save('home_sections', v)}  />

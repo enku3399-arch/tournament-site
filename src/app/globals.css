@@ -303,8 +303,8 @@ button { font: inherit; cursor: pointer; border: none; background: none; color: 
   background: rgba(11,20,38,.7); backdrop-filter: blur(8px);
   border: 1px solid var(--line-2); padding: 32px;
 }
-.countdown-eyebrow { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; }
-.countdown-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 26px; }
+.countdown-eyebrow { margin-bottom: 22px; }
+.countdown-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
 .cd-cell { text-align: center; border: 1px solid var(--line); padding: 18px 4px 14px; background: rgba(0,0,0,.2); }
 .cd-num { font-family: var(--display); font-size: 42px; font-weight: 600; color: var(--paper); line-height: 1; letter-spacing: -.01em; }
 .cd-label { font-family: var(--display); text-transform: uppercase; letter-spacing: .18em; font-size: 10px; color: var(--fog); margin-top: 8px; }
