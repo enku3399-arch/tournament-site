@@ -113,10 +113,49 @@ export interface NewsArticle {
   tagColor: 'red' | 'gold'
   author: string
   title: string
-  excerpt: string
+  excerpt: string   // товч — нүүр/жагсаалтанд харагдана
+  content?: string  // дэлгэрэнгүй — дэлгэрэнгүй хуудсанд
   feature: boolean
   imagePath?: string
+  imagePaths?: string[]
   facebookUrl?: string
+}
+
+export function parseNewsDate(date: string): number {
+  const parts = date.trim().split(/[.\-/]/)
+  if (parts.length >= 3) {
+    const [y, m, d] = parts.map(p => parseInt(p, 10))
+    if (!Number.isNaN(y) && !Number.isNaN(m) && !Number.isNaN(d)) {
+      return new Date(y, m - 1, d).getTime()
+    }
+  }
+  const t = Date.parse(date.replace(/\./g, '-'))
+  return Number.isNaN(t) ? 0 : t
+}
+
+export function getArticleImages(a: NewsArticle): string[] {
+  if (a.imagePaths?.length) return a.imagePaths
+  if (a.imagePath) return [a.imagePath]
+  return []
+}
+
+export function getArticleCover(a: NewsArticle): string | undefined {
+  return getArticleImages(a)[0]
+}
+
+export function normalizeNewsArticle(a: NewsArticle): NewsArticle {
+  const images = getArticleImages(a).filter(Boolean)
+  return {
+    ...a,
+    excerpt: a.excerpt ?? '',
+    content: a.content ?? '',
+    imagePaths: images,
+    imagePath: images[0],
+  }
+}
+
+export function sortNewsByDate(articles: NewsArticle[]): NewsArticle[] {
+  return [...articles].sort((a, b) => parseNewsDate(b.date) - parseNewsDate(a.date))
 }
 
 export interface MedalRow {
@@ -560,6 +599,7 @@ export async function getSiteSettings(): Promise<SiteSettings & { _tableExists: 
   if (!result.home_sections || typeof result.home_sections !== 'object') result.home_sections = DEFAULT_SETTINGS.home_sections
   if (!Array.isArray(result.news_tags)) result.news_tags = DEFAULT_SETTINGS.news_tags
   if (!Array.isArray(result.news)) result.news = DEFAULT_SETTINGS.news
+  result.news = sortNewsByDate(result.news.map(normalizeNewsArticle))
   if (!Array.isArray(result.medal_standings)) result.medal_standings = DEFAULT_SETTINGS.medal_standings
   if (!Array.isArray(result.schedule)) result.schedule = DEFAULT_SETTINGS.schedule
   for (const day of result.schedule) {

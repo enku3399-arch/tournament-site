@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { getSiteSettings } from '@/lib/site-settings'
+import { getSiteSettings, getArticleCover } from '@/lib/site-settings'
 import { createServiceClient } from '@/lib/supabase-server'
 import { calculateMedalStandings } from '@/lib/medal-calc'
 import { AIMAG_LOGO } from '@/lib/aimag-logo'
@@ -230,7 +230,7 @@ export default async function HomePage() {
               <Link href={`/news/${featureArticle.id}`} className="news-card feature">
                 <div
                   className="news-image"
-                  style={featureArticle.imagePath ? { backgroundImage: `url(${featureArticle.imagePath})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
+                  style={getArticleCover(featureArticle) ? { backgroundImage: `url(${getArticleCover(featureArticle)})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
                 >
                   <span className={`news-tag${featureArticle.tagColor === 'red' ? ' red' : ''}`}>{featureArticle.tag}</span>
                 </div>
@@ -242,6 +242,16 @@ export default async function HomePage() {
                   </div>
                   <h3 className="news-title">{featureArticle.title}</h3>
                   {featureArticle.excerpt && <p className="news-excerpt">{featureArticle.excerpt}</p>}
+                  <div style={{ marginTop: 20 }}>
+                    <span style={{
+                      display: 'inline-block',
+                      fontFamily: 'var(--display)', textTransform: 'uppercase', letterSpacing: '.1em',
+                      fontSize: 11, fontWeight: 600, padding: '8px 20px',
+                      background: 'var(--gold)', color: 'var(--ink)',
+                    }}>
+                      Дэлгэрэнгүй →
+                    </span>
+                  </div>
                 </div>
               </Link>
 
@@ -251,7 +261,7 @@ export default async function HomePage() {
                     <div className="news-compact">
                       <div
                         className="news-image"
-                        style={n.imagePath ? { backgroundImage: `url(${n.imagePath})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
+                        style={getArticleCover(n) ? { backgroundImage: `url(${getArticleCover(n)})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
                       >
                         <span className={`news-tag${n.tagColor === 'red' ? ' red' : ''}`}>{n.tag}</span>
                       </div>

@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { getSiteSettings } from '@/lib/site-settings'
+import { getSiteSettings, getArticleCover, getArticleImages } from '@/lib/site-settings'
 import ShareButton from '@/components/ShareButton'
 
 export const dynamic = 'force-dynamic'
@@ -12,6 +12,7 @@ export default async function NewsDetailPage({ params }: { params: Promise<{ id:
 
   if (!article) notFound()
 
+  const images = getArticleImages(article)
   const others = settings.news.filter(a => a.id !== id).slice(0, 3)
 
   return (
@@ -23,20 +24,20 @@ export default async function NewsDetailPage({ params }: { params: Promise<{ id:
         </div>
       </div>
 
-      {/* hero image */}
-      {article.imagePath && (
-        <div style={{ width: '100%', maxHeight: 480, overflow: 'hidden', marginTop: 24 }}>
+      {/* hero image (cover) */}
+      {images.length > 0 && (
+        <div style={{ width: '100%', maxHeight: 520, overflow: 'hidden', marginTop: 24 }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={article.imagePath}
+            src={images[0]}
             alt={article.title}
-            style={{ width: '100%', height: '100%', objectFit: 'cover', maxHeight: 480 }}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', maxHeight: 520 }}
           />
         </div>
       )}
 
       {/* article content */}
-      <section className="section" style={{ paddingTop: article.imagePath ? 32 : 24 }}>
+      <section className="section" style={{ paddingTop: images.length ? 32 : 24 }}>
         <div className="wrap-wide" style={{ maxWidth: 800 }}>
           {/* tag */}
           <span style={{
@@ -66,11 +67,48 @@ export default async function NewsDetailPage({ params }: { params: Promise<{ id:
 
           {article.excerpt && (
             <p style={{
-              fontSize: 17, color: 'var(--fog)', lineHeight: 1.75, marginBottom: 32,
+              fontSize: 17, color: 'var(--fog)', lineHeight: 1.75, marginBottom: article.content ? 24 : 32,
               borderLeft: '3px solid var(--gold)', paddingLeft: 20,
             }}>
               {article.excerpt}
             </p>
+          )}
+
+          {/* inline gallery (smaller) */}
+          {images.slice(1).length > 0 && (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+              gap: 12,
+              margin: '0 0 28px',
+            }}>
+              {images.slice(1).map((src, i) => (
+                <a key={src} href={src} target="_blank" rel="noreferrer" style={{ display: 'block' }}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={src}
+                    alt={`${article.title} — ${i + 2}`}
+                    style={{
+                      width: '100%',
+                      aspectRatio: '16/9',
+                      objectFit: 'cover',
+                      borderRadius: 10,
+                      border: '1px solid var(--line)',
+                      background: 'var(--ink-2)',
+                    }}
+                  />
+                </a>
+              ))}
+            </div>
+          )}
+
+          {article.content && (
+            <div style={{
+              fontSize: 16, color: 'var(--paper)', lineHeight: 1.85, marginBottom: 32,
+              whiteSpace: 'pre-wrap',
+            }}>
+              {article.content}
+            </div>
           )}
 
           {article.facebookUrl && (
@@ -110,7 +148,7 @@ export default async function NewsDetailPage({ params }: { params: Promise<{ id:
                       className="news-image"
                       style={{
                         aspectRatio: '16/9',
-                        ...(n.imagePath ? { backgroundImage: `url(${n.imagePath})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}),
+                        ...(getArticleCover(n) ? { backgroundImage: `url(${getArticleCover(n)})`, backgroundSize: 'cover', backgroundPosition: 'center' } : {}),
                       }}
                     >
                       <span className={`news-tag${n.tagColor === 'red' ? ' red' : ''}`}>{n.tag}</span>

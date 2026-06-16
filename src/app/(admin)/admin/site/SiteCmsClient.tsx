@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react'
 import type { SiteSettings, NavLink, Sponsor, StatItem, HostAimag, SiteAbout, AboutFact, AboutValue, AboutEdition, HomeSections, NewsArticle, NewsTag, MedalRow, ScheduleDay, ScheduleEvent, FooterNav, ScoringLink, SportOverride, ManualSportResult, ManualPointTier } from '@/lib/site-settings'
+import { sortNewsByDate, normalizeNewsArticle, getArticleImages } from '@/lib/site-settings'
 import { DEFAULT_POINT_TIERS, DEFAULT_LOW_TIERS } from '@/lib/site-settings'
 import type { AimagStanding } from '@/lib/medal-calc'
 
@@ -1172,7 +1173,7 @@ function NewsTab({
   onSave: (v: NewsArticle[]) => Promise<void>
   onSaveTags: (v: NewsTag[]) => Promise<void>
 }) {
-  const [articles, setArticles] = useState<NewsArticle[]>(data)
+  const [articles, setArticles] = useState<NewsArticle[]>(() => sortNewsByDate(data.map(normalizeNewsArticle)))
   const [tags, setTags] = useState<NewsTag[]>(initialTags)
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -1199,13 +1200,20 @@ function NewsTab({
     setTagSaving(false)
   }
 
-  function update(id: string, field: keyof NewsArticle, val: string | boolean) {
+  function update(id: string, field: keyof NewsArticle, val: string | boolean | string[]) {
     setArticles(prev => prev.map(a => {
       if (a.id !== id) return a
       if (field === 'feature' && val === true) {
         // only one feature at a time — handled below
       }
-      return { ...a, [field]: val }
+      const next = { ...a, [field]: val }
+      if (field === 'imagePaths' && Array.isArray(val)) {
+        next.imagePath = val[0]
+      }
+      if (field === 'imagePath' && typeof val === 'string') {
+        next.imagePaths = val ? [val] : []
+      }
+      return next
     }))
     if (field === 'feature' && val === true) {
       setArticles(prev => prev.map(a => ({ ...a, feature: a.id === id })))
@@ -1223,24 +1231,20 @@ function NewsTab({
   }
   function add() {
     const id = crypto.randomUUID()
-    setArticles(prev => [...prev, {
+    const article: NewsArticle = {
       id, date: new Date().toISOString().slice(0, 10).replace(/-/g, '.'),
       tag: 'Мэдээ', tagColor: 'gold', author: 'Редакц',
-      title: 'Шинэ мэдээний гарчиг', excerpt: '', feature: false,
-    }])
+      title: 'Шинэ мэдээний гарчиг', excerpt: '', content: '', feature: false,
+    }
+    setArticles(prev => sortNewsByDate([article, ...prev]))
     setOpen(id)
-  }
-  function move(i: number, dir: -1 | 1) {
-    const j = i + dir
-    if (j < 0 || j >= articles.length) return
-    const next = [...articles];
-    [next[i], next[j]] = [next[j], next[i]]
-    setArticles(next)
   }
 
   async function save() {
     setSaving(true); setSaved(false)
-    try { await onSave(articles); setSaved(true); setTimeout(() => setSaved(false), 3000) }
+    const sorted = sortNewsByDate(articles.map(normalizeNewsArticle))
+    setArticles(sorted)
+    try { await onSave(sorted); setSaved(true); setTimeout(() => setSaved(false), 3000) }
     catch { /* error shown globally */ }
     setSaving(false)
   }
@@ -1294,17 +1298,13 @@ function NewsTab({
         )}
       </div>
 
-      <p className="text-xs text-muted">Мэдээний хуудас болон нүүр хуудасны мэдээ секторт гарна. "Онцлох" тэмдэглэсэн нэг нийтлэл том карт болон харагдана.</p>
+      <p className="text-xs text-muted">Мэдээний хуудас болон нүүр хуудасны мэдээ секторт гарна. Огноогоор шинэ нь эхэнд автоматаар эрэмбэлэгдэнэ. &quot;Онцлох&quot; тэмдэглэсэн нэг нийтлэл том карт болон харагдана.</p>
 
       <div className="space-y-2">
-        {articles.map((a, i) => (
+        {articles.map((a) => (
           <div key={a.id} className="rounded-xl border border-border bg-surface-2 overflow-hidden">
             {/* Header */}
             <div className="flex items-center gap-2 px-3 py-2.5">
-              <div className="flex flex-col gap-0.5">
-                <button type="button" onClick={() => move(i, -1)} disabled={i === 0} className="text-muted hover:text-foreground disabled:opacity-20 text-xs leading-none">▲</button>
-                <button type="button" onClick={() => move(i, 1)} disabled={i === articles.length - 1} className="text-muted hover:text-foreground disabled:opacity-20 text-xs leading-none">▼</button>
-              </div>
               <div className="flex items-center gap-2 flex-1 min-w-0 cursor-pointer" onClick={() => setOpen(open === a.id ? null : a.id)}>
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded shrink-0 ${
                   a.tagColor === 'red'
@@ -1363,32 +1363,44 @@ function NewsTab({
                 </div>
 
                 <div className="space-y-1">
-                  <label className="block text-xs font-semibold text-muted uppercase tracking-wider">Хураангуй</label>
+                  <label className="block text-xs font-semibold text-muted uppercase tracking-wider">Товч</label>
                   <textarea value={a.excerpt} onChange={e => update(a.id, 'excerpt', e.target.value)}
-                    rows={3} placeholder="Мэдээний богино хураангуй..."
+                    rows={3} placeholder="Нүүр болон жагсаалтанд харагдах богино товч..."
                     className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm resize-none focus:outline-none focus:border-primary/50" />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="block text-xs font-semibold text-muted uppercase tracking-wider">Дэлгэрэнгүй</label>
+                  <textarea value={a.content ?? ''} onChange={e => update(a.id, 'content', e.target.value)}
+                    rows={8} placeholder="Мэдээний бүрэн текст — дэлгэрэнгүй хуудсанд харагдана..."
+                    className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm resize-y focus:outline-none focus:border-primary/50" />
                 </div>
 
                 {/* Image upload */}
                 <div className="space-y-2">
-                  <label className="block text-xs font-semibold text-muted uppercase tracking-wider">Зураг (WebP болгон хадгална)</label>
+                  <label className="block text-xs font-semibold text-muted uppercase tracking-wider">Зургууд (олон зураг оруулж болно · WebP болгон хадгална)</label>
                   <div className="flex flex-wrap gap-3 items-start">
                     <label className="cursor-pointer rounded-lg border border-dashed border-primary/40 bg-primary/5 px-4 py-2 text-xs text-primary hover:bg-primary/10 transition-colors">
                       {uploadingId === a.id ? '⏳ Байршуулж байна...' : '📁 Зураг сонгох'}
-                      <input type="file" accept="image/*" className="hidden" disabled={uploadingId === a.id}
+                      <input type="file" accept="image/*" multiple className="hidden" disabled={uploadingId === a.id}
                         onChange={async (e) => {
-                          const file = e.target.files?.[0]
-                          if (!file) return
+                          const files = Array.from(e.target.files ?? [])
+                          if (!files.length) return
                           setUploadingId(a.id)
-                          const fd = new FormData()
-                          fd.append('file', file)
+                          const urls: string[] = []
                           try {
-                            const res = await fetch('/api/admin/upload', { method: 'POST', body: fd })
-                            const json = await res.json()
-                            if (json.url) {
-                              update(a.id, 'imagePath', json.url)
+                            for (const file of files) {
+                              const fd = new FormData()
+                              fd.append('file', file)
+                              const res = await fetch('/api/admin/upload', { method: 'POST', body: fd })
+                              const json = await res.json()
+                              if (json.url) urls.push(json.url)
+                            }
+                            if (urls.length) {
+                              const current = getArticleImages(a)
+                              update(a.id, 'imagePaths', [...current, ...urls])
                             } else {
-                              alert('Зураг байршуулахад алдаа гарлаа: ' + (json.error ?? 'Unknown error'))
+                              alert('Зураг байршуулахад алдаа гарлаа')
                             }
                           } catch {
                             alert('Сервертэй холбогдоход алдаа гарлаа')
@@ -1398,23 +1410,24 @@ function NewsTab({
                         }}
                       />
                     </label>
-                    {a.imagePath && (
-                      <>
+                    {getArticleImages(a).map((src, idx) => (
+                      <div key={src} className="relative group">
                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={a.imagePath} alt="" className="h-16 w-auto object-cover rounded border border-border" />
-                        <button type="button" onClick={() => update(a.id, 'imagePath', '')}
-                          className="text-danger/60 hover:text-danger text-xs px-2 py-1 border border-border rounded">
-                          ✕ Устгах
+                        <img src={src} alt="" className="h-16 w-auto object-cover rounded border border-border" />
+                        <button type="button"
+                          onClick={() => {
+                            const next = getArticleImages(a).filter((_, i) => i !== idx)
+                            update(a.id, 'imagePaths', next)
+                          }}
+                          className="absolute -top-1 -right-1 bg-danger text-white rounded-full w-4 h-4 text-[10px] leading-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                          ✕
                         </button>
-                      </>
-                    )}
-                    {!a.imagePath && (
+                      </div>
+                    ))}
+                    {!getArticleImages(a).length && (
                       <span className="text-xs text-muted/60 self-center">Зураг сонгоогүй</span>
                     )}
                   </div>
-                  {a.imagePath && (
-                    <p className="text-[11px] text-muted/70 font-mono">{a.imagePath}</p>
-                  )}
                 </div>
 
                 {/* Facebook post URL */}

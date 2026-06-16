@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import type { NewsArticle, NewsTag } from '@/lib/site-settings'
+import { getArticleCover } from '@/lib/site-settings'
 import ShareButton from '@/components/ShareButton'
 
 export default function NewsClient({ articles, tags }: { articles: NewsArticle[]; tags: NewsTag[] }) {
@@ -62,7 +63,7 @@ export default function NewsClient({ articles, tags }: { articles: NewsArticle[]
         <div className="news-grid" style={{ marginBottom: 48 }}>
           {/* Feature card */}
           <Link href={`/news/${feature.id}`} className="news-card feature" style={{ textDecoration: 'none' }}>
-            <div className="news-image" style={feature.imagePath ? { backgroundImage: `url(${feature.imagePath})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
+            <div className="news-image" style={getArticleCover(feature) ? { backgroundImage: `url(${getArticleCover(feature)})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
               <span className={`news-tag${feature.tagColor === 'red' ? ' red' : ''}`}>{feature.tag}</span>
             </div>
             <div className="news-body">
@@ -91,7 +92,7 @@ export default function NewsClient({ articles, tags }: { articles: NewsArticle[]
             {rest.slice(0, 4).map(n => (
               <Link key={n.id} href={`/news/${n.id}`} className="news-card compact" style={{ textDecoration: 'none', display: 'block' }}>
                 <div className="news-compact">
-                  <div className="news-image" style={n.imagePath ? { backgroundImage: `url(${n.imagePath})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
+                  <div className="news-image" style={getArticleCover(n) ? { backgroundImage: `url(${getArticleCover(n)})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
                     <span className={`news-tag${n.tagColor === 'red' ? ' red' : ''}`}>{n.tag}</span>
                   </div>
                   <div className="news-body">
@@ -118,7 +119,7 @@ export default function NewsClient({ articles, tags }: { articles: NewsArticle[]
           <div style={{ display: 'grid', gap: 16 }}>
             {rest.slice(4).map(n => (
               <Link key={n.id} href={`/news/${n.id}`} className="news-card news-card-hlist" style={{ textDecoration: 'none' }}>
-                <div className="news-image" style={n.imagePath ? { backgroundImage: `url(${n.imagePath})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
+                <div className="news-image" style={getArticleCover(n) ? { backgroundImage: `url(${getArticleCover(n)})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}>
                   <span className={`news-tag${n.tagColor === 'red' ? ' red' : ''}`}>{n.tag}</span>
                 </div>
                 <div className="news-body" style={{ padding: '16px 24px' }}>
