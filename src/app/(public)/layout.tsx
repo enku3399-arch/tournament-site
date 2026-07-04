@@ -30,11 +30,10 @@ export default async function PublicLayout({ children }: { children: React.React
         <div className="wrap-wide footer-top">
           <div className="footer-brand brand" style={{ alignItems: 'flex-start' }}>
             <div className="emblem">
-              <Image src={logoWhite || '/logo-white.png'} alt="Лого" width={64} height={64} style={{ objectFit: 'contain' }} />
+              <Image src={logoWhite || '/logo-white.jpg'} alt="Лого" width={80} height={80} style={{ objectFit: 'contain' }} />
             </div>
             <div className="brand-text">
-              <div className="brand-line-1" style={{ color: 'var(--gold)' }}>Монгол-87/89 ГҮТББ</div>
-              <div className="brand-line-2" style={{ color: 'var(--paper)' }}>{g.edition} Спорт Наадам</div>
+              <div className="brand-line-2" style={{ color: 'var(--paper)' }}>{g.siteName}</div>
               <p>{g.motto}</p>
             </div>
           </div>
@@ -57,8 +56,8 @@ export default async function PublicLayout({ children }: { children: React.React
           <div className="footer-col">
             <h4>Холбоо барих</h4>
             <ul>
-              <li>{g.phone}</li>
-              <li>{g.email}</li>
+              <li><a href={`tel:${g.phone.replace(/\s/g, '')}`}>{g.phone}</a></li>
+              <li><a href={`mailto:${g.email}`}>{g.email}</a></li>
               <li>{g.address}</li>
               {g.facebook && <li><a href={g.facebook} target="_blank" rel="noopener noreferrer">Facebook</a></li>}
               {g.youtube  && <li><a href={g.youtube}  target="_blank" rel="noopener noreferrer">YouTube</a></li>}
@@ -66,8 +65,8 @@ export default async function PublicLayout({ children }: { children: React.React
           </div>
         </div>
         <div className="wrap-wide footer-bottom">
-          <span>© {g.year} Монгол-87/89 ГҮТББ. Бүх эрх хуулиар хамгаалагдсан.</span>
-          <span>Улаанбаатар хот</span>
+          <span>© {g.year} {g.siteName}. Бүх эрх хуулиар хамгаалагдсан.</span>
+          <span>{g.address.split(',')[0]}</span>
         </div>
       </footer>
     </>

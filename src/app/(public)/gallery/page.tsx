@@ -2,8 +2,11 @@ import { createServiceClient } from '@/lib/supabase-server'
 import { TOURNAMENT_ID } from '@/lib/medal-calc'
 import Link from 'next/link'
 import Image from 'next/image'
+import { sitePageTitle } from '@/lib/site-settings'
 
 export const dynamic = 'force-dynamic'
+
+export const metadata = { title: sitePageTitle('Зургийн цомог') }
 
 export default async function GalleryPage() {
   const supabase = createServiceClient()

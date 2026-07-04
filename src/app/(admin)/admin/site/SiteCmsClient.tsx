@@ -1,18 +1,26 @@
 'use client'
 
 import { useState, useCallback, useRef, useEffect } from 'react'
-import type { SiteSettings, NavLink, Sponsor, StatItem, HostAimag, SiteAbout, AboutFact, AboutValue, AboutEdition, HomeSections, HomeCopy, HomeSportCard, NewsArticle, NewsTag, PendingNewsItem, FacebookSyncSettings, MedalRow, ScheduleDay, ScheduleEvent, FooterNav, ScoringLink, SportOverride, ManualSportResult, ManualPointTier } from '@/lib/site-settings'
+import type { SiteSettings, NavLink, ContentPage, Sponsor, StatItem, HostAimag, SiteAbout, AboutFact, AboutValue, AboutEdition, HomeSections, HomeCopy, HomeSportCard, NewsArticle, NewsTag, PendingNewsItem, FacebookSyncSettings, MedalRow, ScheduleDay, ScheduleEvent, FooterNav, ScoringLink, SportOverride, ManualSportResult, ManualPointTier } from '@/lib/site-settings'
 import { sortNewsByDate, normalizeNewsArticle, getArticleImages, DEFAULT_FACEBOOK_SYNC } from '@/lib/site-settings'
 import { DEFAULT_POINT_TIERS, DEFAULT_LOW_TIERS } from '@/lib/site-settings'
+import { CONTENT_PAGE_DEFS, contentPath, type ContentPageSlug } from '@/lib/content-pages'
+import { DEFAULT_HOME_NEWS_SECTORS, HOME_NEWS_SECTOR_OPTIONS, type HomeNewsSector, type HomeNewsSectorId } from '@/lib/home-news-sectors'
+import type { StructureData, BoardMember, ExecutiveDepartment } from '@/lib/structure-data'
+import type { CharterDocument, CharterBlock } from '@/lib/charter-data'
 import type { AimagStanding } from '@/lib/medal-calc'
 
-type Tab = 'general' | 'hero' | 'nav' | 'sponsors' | 'stats' | 'media' | 'aimags' | 'about' | 'schedule' | 'footer' | 'sections' | 'home_copy' | 'news' | 'medals' | 'scoring' | 'history'
+type Tab = 'general' | 'hero' | 'nav' | 'pages' | 'structure' | 'charter' | 'home_news' | 'sponsors' | 'stats' | 'media' | 'aimags' | 'about' | 'schedule' | 'footer' | 'sections' | 'home_copy' | 'news' | 'medals' | 'scoring' | 'history'
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'general',  label: 'Ерөнхий',         icon: '⚙️' },
   { id: 'hero',     label: 'Hero',             icon: '🏔' },
   { id: 'home_copy', label: 'Нүүр текст',      icon: '✏️' },
   { id: 'nav',      label: 'Навигац',           icon: '📋' },
+  { id: 'pages',    label: 'Хуудас',            icon: '📄' },
+  { id: 'structure', label: 'Бүтэц өгөгдөл',   icon: '🏛' },
+  { id: 'charter',   label: 'ТББ-ын дүрэм',     icon: '📜' },
+  { id: 'home_news', label: 'Нүүр мэдээ',       icon: '📰' },
   { id: 'sponsors', label: 'Спонсор',           icon: '🤝' },
   { id: 'stats',    label: 'Тоо баримт',        icon: '📊' },
   { id: 'media',    label: 'Зураг / Лого',      icon: '🖼' },
@@ -207,32 +215,44 @@ function NavTab({ data, onSave }: { data: NavLink[]; onSave: (v: NavLink[]) => P
       <p className="text-xs text-muted">Дарааллыг ↑↓ товчоор солих боломжтой</p>
       <div className="space-y-2">
         {links.map((link, i) => (
-          <div key={i} className={`flex items-center gap-2 rounded-lg border px-3 py-2 transition-colors ${link.hidden ? 'border-border/40 bg-surface opacity-50' : 'border-border bg-surface-2'}`}>
-            <div className="flex flex-col gap-0.5">
-              <button type="button" onClick={() => move(i, -1)} disabled={i === 0} className="text-muted hover:text-foreground disabled:opacity-20 text-xs leading-none">▲</button>
-              <button type="button" onClick={() => move(i, 1)} disabled={i === links.length - 1} className="text-muted hover:text-foreground disabled:opacity-20 text-xs leading-none">▼</button>
+          <div key={i} className="space-y-1">
+            <div className={`flex items-center gap-2 rounded-lg border px-3 py-2 transition-colors ${link.hidden ? 'border-border/40 bg-surface opacity-50' : 'border-border bg-surface-2'}`}>
+              <div className="flex flex-col gap-0.5">
+                <button type="button" onClick={() => move(i, -1)} disabled={i === 0} className="text-muted hover:text-foreground disabled:opacity-20 text-xs leading-none">▲</button>
+                <button type="button" onClick={() => move(i, 1)} disabled={i === links.length - 1} className="text-muted hover:text-foreground disabled:opacity-20 text-xs leading-none">▼</button>
+              </div>
+              <input
+                value={link.label}
+                onChange={e => update(i, 'label', e.target.value)}
+                placeholder="Нэр"
+                className="flex-1 rounded border border-border bg-surface px-2 py-1 text-sm text-foreground focus:outline-none focus:border-primary/50 min-w-0"
+              />
+              <input
+                value={link.href}
+                onChange={e => update(i, 'href', e.target.value)}
+                placeholder="/path"
+                className="w-40 rounded border border-border bg-surface px-2 py-1 text-sm font-mono text-muted focus:outline-none focus:border-primary/50"
+              />
+              <button
+                type="button"
+                onClick={() => update(i, 'hidden', !link.hidden)}
+                title={link.hidden ? 'Нуусан — дарж харуулах' : 'Харагдаж байна — дарж нуух'}
+                className={`text-base px-1 transition-colors ${link.hidden ? 'text-muted/40 hover:text-muted' : 'text-foreground/60 hover:text-muted'}`}
+              >
+                {link.hidden ? '🙈' : '👁'}
+              </button>
+              <button type="button" onClick={() => remove(i)} className="text-danger/70 hover:text-danger text-sm px-1">✕</button>
             </div>
-            <input
-              value={link.label}
-              onChange={e => update(i, 'label', e.target.value)}
-              placeholder="Нэр"
-              className="flex-1 rounded border border-border bg-surface px-2 py-1 text-sm text-foreground focus:outline-none focus:border-primary/50 min-w-0"
-            />
-            <input
-              value={link.href}
-              onChange={e => update(i, 'href', e.target.value)}
-              placeholder="/path"
-              className="w-40 rounded border border-border bg-surface px-2 py-1 text-sm font-mono text-muted focus:outline-none focus:border-primary/50"
-            />
-            <button
-              type="button"
-              onClick={() => update(i, 'hidden', !link.hidden)}
-              title={link.hidden ? 'Нуусан — дарж харуулах' : 'Харагдаж байна — дарж нуух'}
-              className={`text-base px-1 transition-colors ${link.hidden ? 'text-muted/40 hover:text-muted' : 'text-foreground/60 hover:text-muted'}`}
-            >
-              {link.hidden ? '🙈' : '👁'}
-            </button>
-            <button type="button" onClick={() => remove(i)} className="text-danger/70 hover:text-danger text-sm px-1">✕</button>
+            {(link.children ?? []).map((child, j) => (
+              <div
+                key={`${i}-${j}`}
+                className="ml-8 flex items-center gap-2 rounded-lg border border-border/60 bg-surface px-3 py-1.5 text-xs text-muted"
+              >
+                <span className="text-muted/60">↳</span>
+                <span className="flex-1 text-foreground">{child.label}</span>
+                <span className="font-mono">{child.href}</span>
+              </div>
+            ))}
           </div>
         ))}
       </div>
@@ -250,6 +270,483 @@ function NavTab({ data, onSave }: { data: NavLink[]; onSave: (v: NavLink[]) => P
           disabled={saving}
           className="rounded-lg bg-primary/20 text-primary border border-primary/40 px-5 py-2 text-sm font-semibold hover:bg-primary/30 transition-colors disabled:opacity-50"
         >
+          {saving ? 'Хадгалж байна...' : '💾 Хадгалах'}
+        </button>
+        {saved && <span className="text-sm text-live font-medium">✓ Хадгалагдлаа</span>}
+      </div>
+    </div>
+  )
+}
+
+const PAGE_GROUPS: { title: string; slugs: ContentPageSlug[] }[] = [
+  {
+    title: 'Бүтэц зохион байгуулалт',
+    slugs: ['butets', 'butets/durmiin', 'butets/belegdel', 'butets/alba', 'butets/zovlol', 'butets/baga-khural'],
+  },
+  {
+    title: 'Дэлхийн 89',
+    slugs: ['delkhin-89', 'delkhin-89/amerik', 'delkhin-89/solongs', 'delkhin-89/yapon'],
+  },
+  {
+    title: 'Манай бахархал',
+    slugs: ['bakharkhal', 'bakharkhal/aldar', 'bakharkhal/sport', 'bakharkhal/urlag'],
+  },
+]
+
+function ContentPagesTab({
+  data,
+  onSave,
+}: {
+  data: Record<string, ContentPage>
+  onSave: (v: Record<string, ContentPage>) => Promise<void>
+}) {
+  const [pages, setPages] = useState<Record<string, ContentPage>>(data)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  function update(slug: ContentPageSlug, field: keyof ContentPage, value: string) {
+    setPages(prev => ({
+      ...prev,
+      [slug]: { ...prev[slug], [field]: value },
+    }))
+  }
+
+  async function save() {
+    setSaving(true)
+    setSaved(false)
+    try {
+      await onSave(pages)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+    } catch { /* error shown globally */ }
+    setSaving(false)
+  }
+
+  return (
+    <div className="space-y-6">
+      <p className="text-xs text-muted">
+        Бүтэц, Дэлхийн 89, Манай бахархал хуудсуудын гарчиг, тайлбар, агуулгыг энд засварлана.
+      </p>
+      {PAGE_GROUPS.map(group => (
+        <div key={group.title} className="space-y-3">
+          <h3 className="text-sm font-semibold text-foreground border-b border-border pb-2">{group.title}</h3>
+          {group.slugs.map(slug => {
+            const page = pages[slug] ?? CONTENT_PAGE_DEFS[slug]
+            return (
+              <div key={slug} className="rounded-lg border border-border bg-surface-2 p-4 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-sm font-medium text-foreground">{CONTENT_PAGE_DEFS[slug].title}</span>
+                  <a
+                    href={contentPath(slug)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs font-mono text-primary hover:underline"
+                  >
+                    {contentPath(slug)}
+                  </a>
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block space-y-1">
+                    <span className="text-xs text-muted">Гарчиг</span>
+                    <input
+                      value={page.title}
+                      onChange={e => update(slug, 'title', e.target.value)}
+                      className="w-full rounded border border-border bg-surface px-2 py-1.5 text-sm text-foreground focus:outline-none focus:border-primary/50"
+                    />
+                  </label>
+                  <label className="block space-y-1">
+                    <span className="text-xs text-muted">Дэд гарчиг</span>
+                    <input
+                      value={page.eyebrow}
+                      onChange={e => update(slug, 'eyebrow', e.target.value)}
+                      className="w-full rounded border border-border bg-surface px-2 py-1.5 text-sm text-foreground focus:outline-none focus:border-primary/50"
+                    />
+                  </label>
+                </div>
+                <label className="block space-y-1">
+                  <span className="text-xs text-muted">Агуулга</span>
+                  <textarea
+                    value={page.body}
+                    onChange={e => update(slug, 'body', e.target.value)}
+                    rows={4}
+                    className="w-full rounded border border-border bg-surface px-2 py-1.5 text-sm text-foreground focus:outline-none focus:border-primary/50 resize-y"
+                  />
+                </label>
+              </div>
+            )
+          })}
+        </div>
+      ))}
+      <div className="flex items-center gap-3 pt-2 border-t border-border">
+        <button
+          type="button"
+          onClick={save}
+          disabled={saving}
+          className="rounded-lg bg-primary/20 text-primary border border-primary/40 px-5 py-2 text-sm font-semibold hover:bg-primary/30 transition-colors disabled:opacity-50"
+        >
+          {saving ? 'Хадгалж байна...' : '💾 Хадгалах'}
+        </button>
+        {saved && <span className="text-sm text-live font-medium">✓ Хадгалагдлаа</span>}
+      </div>
+    </div>
+  )
+}
+
+function HomeNewsSectorsTab({
+  data,
+  onSave,
+}: {
+  data: HomeNewsSector[]
+  onSave: (v: HomeNewsSector[]) => Promise<void>
+}) {
+  const [sectors, setSectors] = useState<HomeNewsSector[]>(data)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  function update(i: number, patch: Partial<HomeNewsSector>) {
+    setSectors(prev => prev.map((s, idx) => idx === i ? { ...s, ...patch } : s))
+  }
+
+  async function save() {
+    setSaving(true)
+    setSaved(false)
+    try {
+      await onSave(sectors)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+    } catch { /* error shown globally */ }
+    setSaving(false)
+  }
+
+  const enabledCount = sectors.filter(s => s.enabled).length
+
+  return (
+    <div className="space-y-5">
+      <div className="rounded-xl border border-accent/20 bg-accent/5 px-4 py-3 text-xs text-muted">
+        <p className="font-semibold text-foreground/70 mb-1">📰 Нүүр хуудасны мэдээний секторууд</p>
+        <p>
+          Цэс бүрийн сүүлийн мэдээг нүүрт харуулах эсэхийг тохируулна.
+          Одоо <b className="text-foreground">{enabledCount}/{sectors.length}</b> сектор идэвхтэй.
+          Сектор бүрт жигд 5 карт нэг эгнээнд харагдана (онцлох том картгүй).
+        </p>
+      </div>
+
+      <div className="space-y-3">
+        {sectors.map((sector, i) => (
+          <div
+            key={sector.id}
+            className={`rounded-xl border p-4 space-y-3 transition-colors ${
+              sector.enabled ? 'border-primary/30 bg-primary/5' : 'border-border bg-surface-2 opacity-70'
+            }`}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={sector.enabled}
+                  onChange={e => update(i, { enabled: e.target.checked })}
+                  className="accent-primary w-4 h-4"
+                />
+                <span className="text-sm font-semibold">{sector.label}</span>
+              </label>
+              <a href={sector.href} target="_blank" rel="noopener noreferrer" className="text-xs font-mono text-primary hover:underline">
+                {sector.href}
+              </a>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <label className="block space-y-1">
+                <span className="text-xs text-muted">Гарчиг</span>
+                <input
+                  value={sector.label}
+                  onChange={e => update(i, { label: e.target.value })}
+                  className="w-full rounded border border-border bg-surface px-2 py-1.5 text-sm focus:outline-none focus:border-primary/50"
+                />
+              </label>
+              <label className="block space-y-1">
+                <span className="text-xs text-muted">Дэд гарчиг</span>
+                <input
+                  value={sector.eyebrow}
+                  onChange={e => update(i, { eyebrow: e.target.value })}
+                  className="w-full rounded border border-border bg-surface px-2 py-1.5 text-sm focus:outline-none focus:border-primary/50"
+                />
+              </label>
+              <label className="block space-y-1">
+                <span className="text-xs text-muted">Харуулах тоо (1–12)</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={12}
+                  value={sector.limit}
+                  onChange={e => update(i, { limit: Math.min(12, Math.max(1, parseInt(e.target.value, 10) || 5)) })}
+                  className="w-full rounded border border-border bg-surface px-2 py-1.5 text-sm focus:outline-none focus:border-primary/50"
+                />
+              </label>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex items-center gap-3 pt-2 border-t border-border">
+        <button
+          type="button"
+          onClick={save}
+          disabled={saving}
+          className="rounded-lg bg-primary/20 text-primary border border-primary/40 px-5 py-2 text-sm font-semibold hover:bg-primary/30 transition-colors disabled:opacity-50"
+        >
+          {saving ? 'Хадгалж байна...' : '💾 Хадгалах'}
+        </button>
+        {saved && <span className="text-sm text-live font-medium">✓ Хадгалагдлаа</span>}
+      </div>
+    </div>
+  )
+}
+
+function StructureDataTab({
+  data,
+  onSave,
+}: {
+  data: StructureData
+  onSave: (v: StructureData) => Promise<void>
+}) {
+  const [form, setForm] = useState<StructureData>(data)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  function updateBoard(i: number, field: keyof BoardMember, value: string) {
+    setForm(f => ({
+      ...f,
+      boardMembers: f.boardMembers.map((m, idx) => idx === i ? { ...m, [field]: value } : m),
+    }))
+  }
+  function updateDept(i: number, field: keyof ExecutiveDepartment, value: string | number) {
+    setForm(f => ({
+      ...f,
+      departments: f.departments.map((d, idx) => idx === i ? { ...d, [field]: value } : d),
+    }))
+  }
+
+  async function save() {
+    setSaving(true)
+    setSaved(false)
+    try {
+      await onSave(form)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+    } catch { /* error shown globally */ }
+    setSaving(false)
+  }
+
+  return (
+    <div className="space-y-6">
+      <p className="text-xs text-muted">
+        Бүтцийн схем, удирдах зөвлөл, гүйцэтгэх албадын мэдээллийг засварлана.
+      </p>
+
+      <div className="rounded-lg border border-border bg-surface-2 p-4 space-y-3">
+        <h3 className="text-sm font-semibold">Бүтцийн схем зураг</h3>
+        <label className="block space-y-1">
+          <span className="text-xs text-muted">Зургийн зам</span>
+          <input
+            value={form.orgChartPath}
+            onChange={e => setForm(f => ({ ...f, orgChartPath: e.target.value }))}
+            className="w-full rounded border border-border bg-surface px-2 py-1.5 text-sm font-mono focus:outline-none focus:border-primary/50"
+          />
+        </label>
+        <label className="block space-y-1">
+          <span className="text-xs text-muted">Тайлбар</span>
+          <input
+            value={form.orgChartAlt}
+            onChange={e => setForm(f => ({ ...f, orgChartAlt: e.target.value }))}
+            className="w-full rounded border border-border bg-surface px-2 py-1.5 text-sm focus:outline-none focus:border-primary/50"
+          />
+        </label>
+      </div>
+
+      <div className="rounded-lg border border-border bg-surface-2 p-4 space-y-3">
+        <div className="flex items-center justify-between gap-3">
+          <h3 className="text-sm font-semibold">Удирдах зөвлөл</h3>
+          <label className="flex items-center gap-2 text-xs text-muted">
+            Хугацаа
+            <input
+              value={form.boardPeriod}
+              onChange={e => setForm(f => ({ ...f, boardPeriod: e.target.value }))}
+              className="rounded border border-border bg-surface px-2 py-1 text-sm w-28"
+            />
+          </label>
+        </div>
+        <div className="space-y-2 max-h-96 overflow-y-auto">
+          {form.boardMembers.map((m, i) => (
+            <div key={m.id} className="grid gap-2 sm:grid-cols-4 text-xs border border-border/60 rounded p-2 bg-surface">
+              <input value={m.aimag} onChange={e => updateBoard(i, 'aimag', e.target.value)} placeholder="Аймаг" className="rounded border border-border px-2 py-1" />
+              <input value={m.name} onChange={e => updateBoard(i, 'name', e.target.value)} placeholder="Нэр" className="rounded border border-border px-2 py-1" />
+              <input value={m.phone} onChange={e => updateBoard(i, 'phone', e.target.value)} placeholder="Утас" className="rounded border border-border px-2 py-1" />
+              <input value={m.facebook} onChange={e => updateBoard(i, 'facebook', e.target.value)} placeholder="Facebook" className="rounded border border-border px-2 py-1" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-border bg-surface-2 p-4 space-y-3">
+        <label className="block space-y-1">
+          <span className="text-sm font-semibold">Гүйцэтгэх албадын гарчиг</span>
+          <input
+            value={form.departmentsTitle}
+            onChange={e => setForm(f => ({ ...f, departmentsTitle: e.target.value }))}
+            className="w-full rounded border border-border bg-surface px-2 py-1.5 text-sm focus:outline-none focus:border-primary/50"
+          />
+        </label>
+        <div className="space-y-2">
+          {form.departments.map((d, i) => (
+            <div key={d.id} className="grid gap-2 sm:grid-cols-4 text-xs border border-border/60 rounded p-2 bg-surface">
+              <input type="number" value={d.num} onChange={e => updateDept(i, 'num', parseInt(e.target.value, 10) || 0)} placeholder="№" className="rounded border border-border px-2 py-1 w-16" />
+              <input value={d.name} onChange={e => updateDept(i, 'name', e.target.value)} placeholder="Алба" className="rounded border border-border px-2 py-1" />
+              <input value={d.head} onChange={e => updateDept(i, 'head', e.target.value)} placeholder="Дарга" className="rounded border border-border px-2 py-1" />
+              <input value={d.phone} onChange={e => updateDept(i, 'phone', e.target.value)} placeholder="Утас" className="rounded border border-border px-2 py-1" />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3 pt-2 border-t border-border">
+        <button type="button" onClick={save} disabled={saving}
+          className="rounded-lg bg-primary/20 text-primary border border-primary/40 px-5 py-2 text-sm font-semibold hover:bg-primary/30 transition-colors disabled:opacity-50">
+          {saving ? 'Хадгалж байна...' : '💾 Хадгалах'}
+        </button>
+        {saved && <span className="text-sm text-live font-medium">✓ Хадгалагдлаа</span>}
+      </div>
+    </div>
+  )
+}
+
+function CharterDocumentTab({
+  data,
+  onSave,
+}: {
+  data: CharterDocument
+  onSave: (v: CharterDocument) => Promise<void>
+}) {
+  const [form, setForm] = useState<CharterDocument>(data)
+  const [openSection, setOpenSection] = useState<string | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  function updateSectionTitle(i: number, title: string) {
+    setForm(f => ({
+      ...f,
+      sections: f.sections.map((s, idx) => idx === i ? { ...s, title } : s),
+    }))
+  }
+
+  function updateBlock(si: number, bi: number, patch: Partial<CharterBlock>) {
+    setForm(f => ({
+      ...f,
+      sections: f.sections.map((s, idx) => {
+        if (idx !== si) return s
+        return {
+          ...s,
+          blocks: s.blocks.map((b, j) => j === bi ? { ...b, ...patch } as CharterBlock : b),
+        }
+      }),
+    }))
+  }
+
+  async function save() {
+    setSaving(true)
+    setSaved(false)
+    try {
+      await onSave(form)
+      setSaved(true)
+      setTimeout(() => setSaved(false), 3000)
+    } catch { /* error shown globally */ }
+    setSaving(false)
+  }
+
+  return (
+    <div className="space-y-5">
+      <div className="rounded-xl border border-accent/20 bg-accent/5 px-4 py-3 text-xs text-muted">
+        <p className="font-semibold text-foreground/70 mb-1">📜 ТББ-ын дүрэм (2025)</p>
+        <p>
+          <a href="/butets/durmiin" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">
+            /butets/durmiin
+          </a>
+          {' '}хуудсанд харагдана. {form.sections.length} бүлэг, нийт{' '}
+          {form.sections.reduce((n, s) => n + s.blocks.length, 0)} блок.
+        </p>
+      </div>
+
+      <label className="block space-y-1">
+        <span className="text-xs text-muted">Баримтын гарчиг</span>
+        <textarea
+          value={form.title}
+          onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+          rows={3}
+          className="w-full rounded border border-border bg-surface px-3 py-2 text-sm focus:outline-none focus:border-primary/50 resize-y"
+        />
+      </label>
+
+      <div className="space-y-2">
+        {form.sections.map((section, si) => {
+          const isOpen = openSection === section.id
+          return (
+            <div key={section.id} className="rounded-lg border border-border bg-surface-2 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setOpenSection(isOpen ? null : section.id)}
+                className="w-full flex items-center gap-2 px-3 py-2.5 text-left hover:bg-surface transition-colors"
+              >
+                <span className="text-muted text-xs">{isOpen ? '▼' : '▶'}</span>
+                <span className="text-sm font-medium flex-1">{section.title}</span>
+                <span className="text-xs text-muted">{section.blocks.length} блок</span>
+              </button>
+              {isOpen && (
+                <div className="border-t border-border px-3 py-3 space-y-3 bg-surface">
+                  <input
+                    value={section.title}
+                    onChange={e => updateSectionTitle(si, e.target.value)}
+                    className="w-full rounded border border-border bg-surface-2 px-2 py-1.5 text-sm focus:outline-none focus:border-primary/50"
+                  />
+                  {section.blocks.map((block, bi) => {
+                    if (block.type === 'table') {
+                      return (
+                        <div key={bi} className="text-xs text-muted border border-border/60 rounded p-2">
+                          Хүснэгт ({block.rows.length} мөр) — кодоор засварлана
+                        </div>
+                      )
+                    }
+                    if (block.type === 'list') {
+                      return (
+                        <textarea
+                          key={bi}
+                          value={block.items.join('\n')}
+                          onChange={e => updateBlock(si, bi, { items: e.target.value.split('\n').filter(Boolean) })}
+                          rows={Math.min(8, block.items.length + 1)}
+                          className="w-full rounded border border-border bg-surface-2 px-2 py-1.5 text-xs focus:outline-none focus:border-primary/50 resize-y font-mono"
+                        />
+                      )
+                    }
+                    const text = block.type === 'subtitle' || block.type === 'paragraph' ? block.text : ''
+                    return (
+                      <textarea
+                        key={bi}
+                        value={text}
+                        onChange={e => updateBlock(si, bi, block.type === 'subtitle'
+                          ? { type: 'subtitle', text: e.target.value }
+                          : { type: 'paragraph', text: e.target.value })}
+                        rows={block.type === 'subtitle' ? 2 : Math.min(6, Math.ceil(text.length / 80) + 1)}
+                        className={`w-full rounded border border-border bg-surface-2 px-2 py-1.5 text-xs focus:outline-none focus:border-primary/50 resize-y ${block.type === 'subtitle' ? 'font-semibold' : ''}`}
+                      />
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+
+      <div className="flex items-center gap-3 pt-2 border-t border-border">
+        <button type="button" onClick={save} disabled={saving}
+          className="rounded-lg bg-primary/20 text-primary border border-primary/40 px-5 py-2 text-sm font-semibold hover:bg-primary/30 transition-colors disabled:opacity-50">
           {saving ? 'Хадгалж байна...' : '💾 Хадгалах'}
         </button>
         {saved && <span className="text-sm text-live font-medium">✓ Хадгалагдлаа</span>}
@@ -1327,6 +1824,7 @@ function NewsTab({
       id, date: new Date().toISOString().slice(0, 10).replace(/-/g, '.'),
       tag: 'Мэдээ', tagColor: 'gold', author: 'Редакц',
       title: 'Шинэ мэдээний гарчиг', excerpt: '', content: '', feature: false,
+      section: 'news',
     }
     setArticles(prev => sortNewsByDate([article, ...prev]))
     setOpen(id)
@@ -1534,6 +2032,9 @@ function NewsTab({
                     : 'bg-accent/20 text-accent'
                 }`}>{a.tag}</span>
                 {a.feature && <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-live/20 text-live shrink-0">★ Онцлох</span>}
+                <span className="text-[10px] font-medium px-2 py-0.5 rounded bg-surface text-muted shrink-0">
+                  {HOME_NEWS_SECTOR_OPTIONS.find(s => s.id === (a.section ?? 'news'))?.label ?? 'Мэдээ'}
+                </span>
                 <span className="text-sm font-medium truncate">{a.title}</span>
                 <span className="text-xs text-muted shrink-0 ml-auto">{a.date}</span>
               </div>
@@ -1556,6 +2057,19 @@ function NewsTab({
                     <input value={a.author} onChange={e => update(a.id, 'author', e.target.value)}
                       placeholder="Редакц"
                       className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm focus:outline-none focus:border-primary/50" />
+                  </div>
+                  <div className="space-y-1 sm:col-span-2">
+                    <label className="block text-xs font-semibold text-muted uppercase tracking-wider">Нүүр сектор (цэс)</label>
+                    <select
+                      value={a.section ?? 'news'}
+                      onChange={e => update(a.id, 'section', e.target.value)}
+                      className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm focus:outline-none focus:border-primary/50"
+                    >
+                      {HOME_NEWS_SECTOR_OPTIONS.map(s => (
+                        <option key={s.id} value={s.id}>{s.label}</option>
+                      ))}
+                    </select>
+                    <p className="text-[11px] text-muted/70">Энэ мэдээ аль хэсгийн нүүр секторт харагдахыг сонгоно</p>
                   </div>
                   <div className="space-y-1 sm:col-span-2">
                     <label className="block text-xs font-semibold text-muted uppercase tracking-wider">Таг (ангилал)</label>
@@ -3197,6 +3711,10 @@ export function SiteCmsClient({ initialSettings, liveStandings, liveSportResults
     if (tab === 'hero')     return <HeroTab         data={settings.hero}            onSave={v => save('hero', v)}           />
     if (tab === 'home_copy') return <HomeCopyTab    data={settings.home_copy}       onSave={v => save('home_copy', v)}      />
     if (tab === 'nav')      return <NavTab          data={settings.nav_links}       onSave={v => save('nav_links', v)}      />
+    if (tab === 'pages')    return <ContentPagesTab data={settings.content_pages}   onSave={v => save('content_pages', v)}  />
+    if (tab === 'structure') return <StructureDataTab data={settings.structure_data} onSave={v => save('structure_data', v)} />
+    if (tab === 'charter')   return <CharterDocumentTab data={settings.charter_document} onSave={v => save('charter_document', v)} />
+    if (tab === 'home_news') return <HomeNewsSectorsTab data={settings.home_news_sectors} onSave={v => save('home_news_sectors', v)} />
     if (tab === 'sponsors') return <SponsorsTab     data={settings.sponsors}        onSave={v => save('sponsors', v)}       />
     if (tab === 'stats')    return <StatsTab        data={settings.stats}           onSave={v => save('stats', v)}          />
     if (tab === 'media')    return <MediaTab        data={settings.hero}            onSave={v => save('hero', v)}           />

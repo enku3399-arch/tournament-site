@@ -5,6 +5,7 @@ export const AIMAG_LOGO: Record<string, string> = {
   'Баянхонгор':         '/logos/Баянхонгор.png',
   'Булган':             '/logos/Булган.png',
   'Говь-Алтай':         '/logos/Говь-Алтай.png',
+  'Говьсүмбэр':         '/logos/Говьсүмбэр.png',
   'Дархан-Уул':         '/logos/Дархан-Уул.png',
   'Дархан':             '/logos/Дархан-Уул.png',
   'Дорноговь':          '/logos/Дорноговь.png',

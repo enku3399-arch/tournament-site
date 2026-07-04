@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { SITE_BRAND } from '@/lib/site-settings'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,7 +12,7 @@ export default function JudgeLayout({ children }: { children: React.ReactNode })
             <span className="text-xl">⚖️</span>
             <div className="leading-none">
               <span className="block text-sm font-extrabold text-foreground">Шүүгчийн портал</span>
-              <span className="block text-[10px] text-muted">Монгол 87/89 · V Наадам</span>
+              <span className="block text-[10px] text-muted">{SITE_BRAND}</span>
             </div>
           </div>
           <Link href="/" className="text-xs text-muted hover:text-foreground transition-colors border border-border rounded px-3 py-1.5">

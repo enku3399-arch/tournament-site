@@ -1,8 +1,9 @@
 import './globals.css'
+import { sitePageTitle } from '@/lib/site-settings'
 
 export const metadata = {
-  title: 'Монгол 87/89 · V Спорт Наадам · УБ 2026',
-  description: 'Монгол 87/89 Төгсөгчдийн Холбоо ТББ-ийн V Спорт Наадам 2026 — Улаанбаатар, "Буянт Ухаа" спорт ордон',
+  title: sitePageTitle('Нүүр'),
+  description: 'Монгол 87/89 ГҮТББ — Нэгдэл · Уламжлал · Хамтын ажиллагаа',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

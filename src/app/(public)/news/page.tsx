@@ -1,12 +1,12 @@
 import Link from 'next/link'
-import { getSiteSettings } from '@/lib/site-settings'
+import { getSiteSettings, sitePageTitle } from '@/lib/site-settings'
 import NewsClient from './NewsClient'
 
 export const dynamic = 'force-dynamic'
 
 export const metadata = {
-  title: 'Мэдээ · Монгол 87/89 V Спорт Наадам 2026',
-  description: 'Монгол 87/89 V Спорт Наадам 2026-ийн сүүлийн мэдээ, мэдэгдэл',
+  title: sitePageTitle('Мэдээ'),
+  description: `${sitePageTitle('Мэдээ')} — сүүлийн мэдээ, мэдэгдэл`,
 }
 
 export default async function NewsPage() {

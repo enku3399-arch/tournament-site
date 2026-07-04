@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { SITE_BRAND } from '@/lib/site-settings'
 
 export default function Nav() {
   return (
@@ -7,8 +8,8 @@ export default function Nav() {
         <Link href="/" className="flex items-center gap-2.5 group">
           <span className="text-2xl">🏆</span>
           <div className="leading-none">
-            <span className="block text-sm font-extrabold text-accent tracking-wide">87/89 ТББ</span>
-            <span className="block text-[10px] text-muted">V Спорт Наадам · 2026</span>
+            <span className="block text-sm font-extrabold text-accent tracking-wide">{SITE_BRAND}</span>
+            <span className="block text-[10px] text-muted">V Спорт наадам · 2026</span>
           </div>
         </Link>
         <nav className="flex items-center gap-1 text-sm">

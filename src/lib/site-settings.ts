@@ -1,5 +1,39 @@
 import { createServiceClient } from '@/lib/supabase-server'
 import { AIMAG_LOGO } from '@/lib/aimag-logo'
+import { mergeContentPages } from '@/lib/content-pages'
+import { mergeDepartmentContentPages, ALBADA_NAV_CHILDREN } from '@/lib/departments-data'
+import { mergeHomeNewsSectors, type HomeNewsSector, type HomeNewsSectorId } from '@/lib/home-news-sectors'
+import { mergeStructureData, type StructureData } from '@/lib/structure-data'
+import { mergeSportStarGroups, type SportStarGroup } from '@/lib/sport-stars-data'
+import { mergeCharterDocument, type CharterDocument } from '@/lib/charter-data'
+
+export const SITE_BRAND = 'Монгол 87/89 ГҮТББ'
+
+export const CHARTER_CONTACT = {
+  phone: '+976 9911 2376',
+  email: 'mongol89tbb@gmail.com',
+  address: 'Улаанбаатар, Сүхбаатар дүүрэг, 5-р хороолол, Нарны гудамж 20а-5',
+} as const
+
+export function sitePageTitle(page: string): string {
+  return `${page} · ${SITE_BRAND}`
+}
+
+function normalizeSiteName(name: string | undefined): string {
+  if (!name?.trim()) return SITE_BRAND
+  const n = name.trim()
+  if (n === SITE_BRAND) return n
+  if (/v\s*спорт|төгсөгчдийн\s*холбоо|монгол-87\s*\/\s*89/i.test(n)) return SITE_BRAND
+  return n
+}
+
+function normalizeGeneralContact(g: SiteGeneral): SiteGeneral {
+  const out = { ...g }
+  if (!g.phone?.trim() || g.phone === '+976 9911 0000') out.phone = CHARTER_CONTACT.phone
+  if (!g.email?.trim() || g.email.toLowerCase() === 'info@m8789.mn') out.email = CHARTER_CONTACT.email
+  if (!g.address?.trim() || g.address === 'Улаанбаатар, СБД') out.address = CHARTER_CONTACT.address
+  return out
+}
 
 export interface SiteGeneral {
   siteName: string
@@ -33,6 +67,13 @@ export interface NavLink {
   href: string
   label: string
   hidden?: boolean
+  children?: NavLink[]
+}
+
+export interface ContentPage {
+  title: string
+  eyebrow: string
+  body: string
 }
 
 export interface Sponsor {
@@ -116,6 +157,7 @@ export interface NewsArticle {
   excerpt: string   // товч — нүүр/жагсаалтанд харагдана
   content?: string  // дэлгэрэнгүй — дэлгэрэнгүй хуудсанд
   feature: boolean
+  section?: HomeNewsSectorId  // нүүр болон секторын ангилал
   imagePath?: string
   imagePaths?: string[]
   facebookUrl?: string
@@ -185,9 +227,17 @@ export function normalizeNewsArticle(a: NewsArticle): NewsArticle {
     ...a,
     excerpt: a.excerpt ?? '',
     content: a.content ?? '',
+    section: a.section ?? inferLegacyNewsSection(a),
     imagePaths: images,
     imagePath: images[0],
   }
+}
+
+function inferLegacyNewsSection(a: NewsArticle): HomeNewsSectorId {
+  const tag = a.tag ?? ''
+  if (/сагсан|волей|спорт|хуваарь|бүртгэл|nice/i.test(tag)) return 'sport'
+  if (tag === 'Зохион байгуулалт') return 'butets'
+  return 'news'
 }
 
 export function sortNewsByDate(articles: NewsArticle[]): NewsArticle[] {
@@ -427,13 +477,13 @@ export const DEFAULT_HOME_COPY: HomeCopy = {
     titleGold: 'төрлүүд',
     action: 'Хэсгийн хуваарь →',
     cards: [
-      { id: 's1', num: '01', cat: '♂ Эрэгтэй', name: 'Сагсан\nбөмбөг', href: '/groups#771904c0-f0c9-4b53-a631-f82cecfde598', desc: 'Хэсгийн хуваарь болон нугалааны дүнг энд дарж шууд харна уу →' },
-      { id: 's2', num: '02', cat: '♀ Эмэгтэй', name: 'Сагсан\nбөмбөг', href: '/groups#875a61c1-6c97-4dca-96a0-dd0bcf9b2cc3', desc: 'Хэсгийн хуваарь болон нугалааны дүнг энд дарж шууд харна уу →' },
-      { id: 's3', num: '03', cat: '♂ Эрэгтэй', name: 'Волейбол', href: '/groups#11a8b935-744d-4032-8280-6ef97ad5a9db', desc: 'Хэсгийн хуваарь болон нугалааны дүнг энд дарж шууд харна уу →' },
-      { id: 's4', num: '04', cat: '♀ Эмэгтэй', name: 'Волейбол', href: '/groups#92dfbd70-204d-4293-985f-b2e49e35c526', desc: 'Хэсгийн хуваарь болон нугалааны дүнг энд дарж шууд харна уу →' },
-      { id: 's5', num: '05', cat: 'Баг', name: 'Ширээний\nтеннис', href: '/groups#094da6e9-660d-4646-b149-7a4cbd8f55a0', desc: 'Хэсгийн хуваарь болон нугалааны дүнг энд дарж шууд харна уу →' },
-      { id: 's6', num: '06', cat: 'Баг', name: 'Дартс', href: '/groups#b0b7ca49-82fb-440f-8e9a-19fdbf1f6d11', desc: 'Хэсгийн хуваарь болон нугалааны дүнг энд дарж шууд харна уу →' },
-      { id: 's7', num: '07', cat: 'Баг', name: 'Шатар', href: '/groups#4b254cc4-16e9-430d-9bf2-0257178db95c', desc: 'Хэсгийн хуваарь болон нугалааны дүнг энд дарж шууд харна уу →' },
+      { id: 's1', num: '01', cat: '♂ Эрэгтэй', name: 'Сагсан\nбөмбөг', href: '/sport/v-naadam/groups#771904c0-f0c9-4b53-a631-f82cecfde598', desc: 'Хэсгийн хуваарь болон нугалааны дүнг энд дарж шууд харна уу →' },
+      { id: 's2', num: '02', cat: '♀ Эмэгтэй', name: 'Сагсан\nбөмбөг', href: '/sport/v-naadam/groups#875a61c1-6c97-4dca-96a0-dd0bcf9b2cc3', desc: 'Хэсгийн хуваарь болон нугалааны дүнг энд дарж шууд харна уу →' },
+      { id: 's3', num: '03', cat: '♂ Эрэгтэй', name: 'Волейбол', href: '/sport/v-naadam/groups#11a8b935-744d-4032-8280-6ef97ad5a9db', desc: 'Хэсгийн хуваарь болон нугалааны дүнг энд дарж шууд харна уу →' },
+      { id: 's4', num: '04', cat: '♀ Эмэгтэй', name: 'Волейбол', href: '/sport/v-naadam/groups#92dfbd70-204d-4293-985f-b2e49e35c526', desc: 'Хэсгийн хуваарь болон нугалааны дүнг энд дарж шууд харна уу →' },
+      { id: 's5', num: '05', cat: 'Баг', name: 'Ширээний\nтеннис', href: '/sport/v-naadam/groups#094da6e9-660d-4646-b149-7a4cbd8f55a0', desc: 'Хэсгийн хуваарь болон нугалааны дүнг энд дарж шууд харна уу →' },
+      { id: 's6', num: '06', cat: 'Баг', name: 'Дартс', href: '/sport/v-naadam/groups#b0b7ca49-82fb-440f-8e9a-19fdbf1f6d11', desc: 'Хэсгийн хуваарь болон нугалааны дүнг энд дарж шууд харна уу →' },
+      { id: 's7', num: '07', cat: 'Баг', name: 'Шатар', href: '/sport/v-naadam/groups#4b254cc4-16e9-430d-9bf2-0257178db95c', desc: 'Хэсгийн хуваарь болон нугалааны дүнг энд дарж шууд харна уу →' },
     ],
   },
   schedule: {
@@ -507,11 +557,16 @@ export interface SiteSettings {
   general: SiteGeneral
   hero: SiteHero
   nav_links: NavLink[]
+  content_pages: Record<string, ContentPage>
+  structure_data: StructureData
+  sport_star_groups: SportStarGroup[]
+  charter_document: CharterDocument
   sponsors: Sponsor[]
   stats: StatItem[]
   host_aimags: HostAimag[]
   about: SiteAbout
   home_sections: HomeSections
+  home_news_sectors: HomeNewsSector[]
   home_copy: HomeCopy
   news_tags: NewsTag[]
   news: NewsArticle[]
@@ -530,19 +585,19 @@ export interface SiteSettings {
 
 export const DEFAULT_SETTINGS: SiteSettings = {
   general: {
-    siteName: 'Монгол 87/89 · V Спорт Наадам',
+    siteName: SITE_BRAND,
     edition: 'V',
     year: '2026',
-    motto: 'Өнгөлөг · Сүрлэг · Тэнгэрлэг · Ухаалаг',
+    motto: 'Нэгдэл · Уламжлал · Хамтын ажиллагаа',
     dateDisplay: '06.11 — 06.13',
     venue: 'Буянт Ухаа',
     venueAddress: '"Буянт Ухаа" спорт ордон',
     hostAimags: 'Өмнөговь · Сэлэнгэ · Төв · Увс',
     teamCount: '21',
     athleteCount: '1,240+',
-    phone: '+976 9911 0000',
-    email: 'info@m8789.mn',
-    address: 'Улаанбаатар, СБД',
+    phone: CHARTER_CONTACT.phone,
+    email: CHARTER_CONTACT.email,
+    address: CHARTER_CONTACT.address,
     facebook: 'https://facebook.com',
     youtube: 'https://youtube.com',
   },
@@ -553,21 +608,57 @@ export const DEFAULT_SETTINGS: SiteSettings = {
     subtitle:
       '— Монгол 87/89 онд төгссөн нэгэн үеийнхний нөхөрлөл, тэмцэл, амжилтыг нэгтгэх V удаагийн наадам. 21 аймгийн оролцоотой, 5 төрөлд, 3 өдрийн турш.',
     heroImagePath: '/media/hero-bg.jpg',
-    logoColorPath: '/logo-color.png',
-    logoWhitePath: '/logo-white.png',
+    logoColorPath: '/logo-color.jpg',
+    logoWhitePath: '/logo-white.jpg',
   },
   nav_links: [
     { href: '/', label: 'Нүүр' },
+    {
+      href: '/butets',
+      label: 'Бүтэц зохион байгуулалт',
+      children: [
+        { href: '/butets/durmiin', label: 'ТББ-ын дүрэм' },
+        { href: '/butets/belegdel', label: 'Бэлэгдэл' },
+        { href: '/butets/alba', label: 'Гүйцэтгэх алба' },
+        { href: '/butets/zovlol', label: 'Удирдах зөвлөл' },
+        { href: '/butets/baga-khural', label: 'Бага хурал' },
+      ],
+    },
+    {
+      href: '/delkhin-89',
+      label: 'Дэлхийн 89',
+      children: [
+        { href: '/delkhin-89/amerik', label: 'Америк дах 89 чүүд' },
+        { href: '/delkhin-89/solongs', label: 'Солонгос дах 89 чүүд' },
+        { href: '/delkhin-89/yapon', label: 'Япон дах 89 чүүд' },
+      ],
+    },
+    {
+      href: '/bakharkhal',
+      label: 'Манай бахархал',
+      children: [
+        { href: '/bakharkhal/aldar', label: 'Алдар цолтнууд' },
+        { href: '/bakharkhal/sport', label: 'Спортын алдартнууд' },
+        { href: '/bakharkhal/urlag', label: 'Урлагын алдартнууд' },
+      ],
+    },
     { href: '/news', label: 'Мэдээ' },
-    { href: '/medals', label: 'Медалийн хүснэгт' },
-    { href: '/matches', label: 'Тоглолтын хуваарь' },
-    { href: '/groups', label: 'Хэсэг' },
-    { href: '/schedule', label: 'Хөтөлбөр' },
-    { href: '/results', label: 'Үр дүн' },
-    { href: '/gallery', label: 'Цомог' },
-    { href: '/history', label: 'Түүх' },
-    { href: '/about', label: 'Наадмын тухай' },
+    { href: '/sport/v-naadam/history', label: 'Спорт' },
+    { href: '/urlag', label: 'Урлаг' },
+    {
+      href: '/albada',
+      label: 'Албадууд',
+      children: ALBADA_NAV_CHILDREN,
+    },
+    { href: '/gallery', label: 'Зургийн цомог' },
   ],
+  content_pages: {
+    ...mergeContentPages(),
+    ...mergeDepartmentContentPages(),
+  },
+  structure_data: mergeStructureData(),
+  sport_star_groups: mergeSportStarGroups(),
+  charter_document: mergeCharterDocument(),
   sponsors: [
     { id: 's1', tier: 'platinum', name: 'Алтан гишүүн 1', logoPath: '', website: '' },
     { id: 's2', tier: 'platinum', name: 'Алтан гишүүн 2', logoPath: '', website: '' },
@@ -767,21 +858,21 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   ] as HostScheduleRow[],
   footer_nav: {
     col1: {
-      title: 'Наадам',
+      title: 'Чиглэл',
       links: [
-        { href: '/schedule', label: 'Хөтөлбөр' },
-        { href: '/results',  label: 'Үр дүн' },
-        { href: '/medals',   label: 'Медалийн хүснэгт' },
-        { href: '/teams',    label: 'Багууд' },
+        { href: '/urlag', label: 'Урлаг' },
+        { href: '/sport', label: 'Спорт' },
+        { href: '/niigem', label: 'Нийгэмийн ажил' },
+        { href: '/sport/v-naadam', label: 'V Спорт наадам' },
       ],
     },
     col2: {
       title: 'Мэдээлэл',
       links: [
-        { href: '/news',    label: 'Сүүлийн мэдээ' },
-        { href: '/press',   label: 'Хэвлэлийн өрөө' },
-        { href: '/gallery', label: 'Цомог' },
-        { href: '/live',    label: 'Шууд дамжуулалт' },
+        { href: '/news', label: 'Мэдээ' },
+        { href: '/gallery', label: 'Зургийн цомог' },
+        { href: '/sport/v-naadam/live', label: 'Шууд дамжуулалт' },
+        { href: '/sport/v-naadam/about', label: 'Наадмын тухай' },
       ],
     },
   } as FooterNav,
@@ -796,6 +887,7 @@ export const DEFAULT_SETTINGS: SiteSettings = {
     about: true,
     sponsors: true,
   },
+  home_news_sectors: mergeHomeNewsSectors(),
   home_copy: DEFAULT_HOME_COPY,
   about: {
     subtitle: 'Монгол улсын ерөнхий боловсролын сургуулийг 1987, 1989 онд төгссөн нэгэн үеийнхний албан ёсны тавдугаар спорт наадам. 21 аймгийн оролцоотой, 5 спортын төрлөөр, 2 өдрийн турш Улаанбаатар хотын "Буянт Ухаа" спорт ордонд зохион байгуулагдана.',
@@ -826,6 +918,94 @@ export const DEFAULT_SETTINGS: SiteSettings = {
   },
 }
 
+const LEGACY_NAV_HREFS = new Set([
+  '/medals', '/matches', '/groups', '/schedule', '/results', '/history', '/about',
+  '/sport', '/niigem', '/#ajillagaa',
+])
+
+function navLinksMatchDefaults(links: NavLink[]): boolean {
+  const d = DEFAULT_SETTINGS.nav_links
+  if (links.length !== d.length) return false
+  return d.every((item, i) => {
+    const cur = links[i]
+    if (!cur || cur.href !== item.href || cur.label !== item.label) return false
+    const dc = item.children ?? []
+    const cc = cur.children ?? []
+    if (dc.length !== cc.length) return false
+    return dc.every((c, j) => cc[j]?.href === c.href && cc[j]?.label === c.label)
+  })
+}
+
+function isPreviousDefaultNav(links: NavLink[]): boolean {
+  if (links.some(l => l.children?.length)) return false
+  const prevLabels = [
+    ['Нүүр', 'Бүтэц', 'Мэдээ', 'Спорт', 'Урлаг', 'Бүлэгүүд', 'Зургийн цомог'],
+    ['Нүүр', 'Бүтэц зохион байгуулалт', 'Мэдээ', 'Спорт', 'Урлаг', 'Бүлэгүүд', 'Зургийн цомог'],
+  ]
+  const labels = links.map(l => l.label)
+  return prevLabels.some(prev => prev.length === labels.length && prev.every((l, i) => labels[i] === l))
+}
+
+function migrateAlbadaNav(links: NavLink[]): NavLink[] {
+  return links.map(l => {
+    if (l.label !== 'Бүлэгүүд' && l.href !== '/buleg' && l.href !== '/albada') return l
+    if (l.label === 'Албадууд' && l.children?.length) return l
+    return {
+      href: '/albada',
+      label: 'Албадууд',
+      children: ALBADA_NAV_CHILDREN,
+    }
+  })
+}
+
+function migrateDelkhin89NavChildren(links: NavLink[]): NavLink[] {
+  const renames: Record<string, string> = {
+    '/delkhin-89/amerik': 'Америк дах 89 чүүд',
+    '/delkhin-89/solongs': 'Солонгос дах 89 чүүд',
+    '/delkhin-89/yapon': 'Япон дах 89 чүүд',
+  }
+  return links.map(l => {
+    if (l.href !== '/delkhin-89' || !l.children?.length) return l
+    return {
+      ...l,
+      children: l.children.map(c => {
+        const label = renames[c.href]
+        return label ? { ...c, label } : c
+      }),
+    }
+  })
+}
+
+function migrateButetsNavChildren(links: NavLink[]): NavLink[] {
+  return links.map(l => {
+    if (l.href !== '/butets' || !l.children?.length) return l
+    if (l.children.some(c => c.href === '/butets/alba')) return l
+    const children = [...l.children]
+    const zovIdx = children.findIndex(c => c.href === '/butets/zovlol')
+    const alba = { href: '/butets/alba', label: 'Гүйцэтгэх алба' }
+    if (zovIdx >= 0) children.splice(zovIdx, 0, alba)
+    else children.push(alba)
+    return { ...l, children }
+  })
+}
+
+function normalizeNavLinks(links: NavLink[]): NavLink[] {
+  if (!Array.isArray(links) || links.length === 0) return DEFAULT_SETTINGS.nav_links
+  const migrated = migrateAlbadaNav(migrateDelkhin89NavChildren(migrateButetsNavChildren(links.map(l =>
+    l.label === 'Бүлэгүүд' && l.href === '/sport/v-naadam/groups'
+      ? { ...l, href: '/albada', label: 'Албадууд', children: ALBADA_NAV_CHILDREN }
+      : l,
+  ))))
+  if (navLinksMatchDefaults(migrated)) return migrated
+  const hasLegacy = migrated.some(l => LEGACY_NAV_HREFS.has(l.href))
+  const hasTournamentLabels = migrated.some(l =>
+    ['Тоглолтын хуваарь', 'Хэсэг', 'Хөтөлбөр', 'Медалийн хүснэгт', 'Наадмын тухай', 'Түүх', 'Үр дүн', 'Манай ажиллагаа'].includes(l.label),
+  )
+  const hasOldOrgNav = migrated.some(l => l.href === '/#ajillagaa' || l.label === 'Манай ажиллагаа')
+  if (hasLegacy || hasTournamentLabels || hasOldOrgNav || isPreviousDefaultNav(migrated)) return DEFAULT_SETTINGS.nav_links
+  return migrated
+}
+
 export async function getSiteSettings(): Promise<SiteSettings & { _tableExists: boolean }> {
   const supabase = createServiceClient()
   const { data, error } = await supabase.from('site_settings').select('key, value')
@@ -838,6 +1018,13 @@ export async function getSiteSettings(): Promise<SiteSettings & { _tableExists: 
       ;(result as any)[row.key] = row.value
     }
   }
+  if (!result.general || typeof result.general !== 'object') result.general = DEFAULT_SETTINGS.general
+  const OLD_MOTTO = 'Өнгөлөг · Сүрлэг · Тэнгэрлэг · Ухаалаг'
+  if (result.general.motto === OLD_MOTTO) result.general.motto = DEFAULT_SETTINGS.general.motto
+  result.general.siteName = normalizeSiteName(result.general.siteName)
+  result.general = normalizeGeneralContact(result.general)
+  if (result.hero?.logoColorPath === '/logo-color.png') result.hero.logoColorPath = '/logo-color.jpg'
+  if (result.hero?.logoWhitePath === '/logo-white.png') result.hero.logoWhitePath = '/logo-white.jpg'
   if (!Array.isArray(result.host_aimags)) result.host_aimags = DEFAULT_SETTINGS.host_aimags
   result.host_aimags = result.host_aimags.map(h => ({
     ...h,
@@ -848,6 +1035,7 @@ export async function getSiteSettings(): Promise<SiteSettings & { _tableExists: 
   if (!Array.isArray(result.about.values))   result.about.values   = DEFAULT_SETTINGS.about.values
   if (!Array.isArray(result.about.editions)) result.about.editions = DEFAULT_SETTINGS.about.editions
   if (!result.home_sections || typeof result.home_sections !== 'object') result.home_sections = DEFAULT_SETTINGS.home_sections
+  result.home_news_sectors = mergeHomeNewsSectors(result.home_news_sectors)
   result.home_copy = mergeHomeCopy(result.home_copy as Partial<HomeCopy> | undefined)
   if (!Array.isArray(result.news_tags)) result.news_tags = DEFAULT_SETTINGS.news_tags
   if (!Array.isArray(result.news)) result.news = DEFAULT_SETTINGS.news
@@ -871,5 +1059,14 @@ export async function getSiteSettings(): Promise<SiteSettings & { _tableExists: 
   if (!Array.isArray(result.schedule_sports)) result.schedule_sports = DEFAULT_SETTINGS.schedule_sports
   if (!Array.isArray(result.sport_overrides)) result.sport_overrides = []
   if (!Array.isArray(result.manual_medal_results)) result.manual_medal_results = []
+  if (!Array.isArray(result.nav_links)) result.nav_links = DEFAULT_SETTINGS.nav_links
+  else result.nav_links = normalizeNavLinks(result.nav_links)
+  result.content_pages = {
+    ...mergeContentPages(result.content_pages as Record<string, Partial<ContentPage>> | undefined),
+    ...mergeDepartmentContentPages(result.content_pages as Record<string, Partial<ContentPage>> | undefined),
+  }
+  result.structure_data = mergeStructureData(result.structure_data as Partial<StructureData> | undefined)
+  result.sport_star_groups = mergeSportStarGroups(result.sport_star_groups)
+  result.charter_document = mergeCharterDocument(result.charter_document as Partial<CharterDocument> | undefined)
   return { ...result, _tableExists: tableExists }
 }
